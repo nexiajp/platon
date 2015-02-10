@@ -6,7 +6,9 @@
   "dependencies": {
     "request": "~2.53.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "net-ping": "~1.1.11"
+  },
   "scripts": {
     "test": "None"
   },
