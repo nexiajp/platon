@@ -1,0 +1,22 @@
+{
+  "name": "platon",
+  "version": "0.0.1",
+  "description": "PLATON is an application that detects system failure or alert.",
+  "main": "app.js",
+  "dependencies": {
+    "request": "~2.53.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "None"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nexiajp/platon.git"
+  },
+  "author": "",
+  "license": "BSD",
+  "bugs": {
+    "url": "https://github.com/nexiajp/platon/issues"
+  }
+}
