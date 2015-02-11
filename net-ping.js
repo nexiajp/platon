@@ -1,5 +1,7 @@
 var ping  = require("net-ping");
 var log   = console.log;
+var dns   = require('dns');
+var async = require('async')
 
 // ping Default options
 var PingOptions = {
@@ -10,20 +12,47 @@ var PingOptions = {
     timeout: 2000,
     ttl: 128
 };
-
-var IPs = [ "54.65.83.103", "54.65.158.4", "54.65.57.39" ];
 var session = ping.createSession (PingOptions);
 
+var IPs = [
+  "54.65.158.4",
+  "www.google.co.jp",
+  "www.yahoo.co.jp",
+  "54.65.57.39",
+  "abc.nexia.jp"
+];
+var reg = new RegExp( '^\\d+\\.\\d+\\.\\d+\\.\\d+$' );
+
 for(var i in IPs){
-  session.pingHost (IPs[i], function (err, target) {
-    log("IP : " + target);
+  var host = IPs[i];
+  if(host.match(reg)){
+    PingCheck(host, null);
+  }else{
+    HostPingCheck(host, function(err, res){
+      if(err) log(res + "err.code: " + err);
+      else PingCheck(res, host);
+    });
+  }
+}
+return;
+
+function HostPingCheck(host,cb){
+  dns.lookup(host, 4, function(err, address){
+    if(err) cb(err,"Error: dns.lookup. " + address);
+    else cb(null,address);
+  });
+}
+
+function PingCheck(ip, host){
+  var name = host ? host : '';
+  session.pingHost (ip, function (err, target) {
     if (err)
       if (err instanceof ping.RequestTimedOutError)
-        msg = "Ping Err: Not alive.";
+        msg = "Ping Error: " + target + " Not alive.";
       else
-        msg = "Ping Err: " + err.toString() + ".";
+        msg = "Ping Error: " + target + " " + err.toString() + ".";
     else
-      msg = "Ping Alive.";
-    log(msg);
+      msg   = "Ping Alive: " + target;
+    log(msg + " " + host);
   });
 }

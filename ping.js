@@ -118,9 +118,9 @@ function PingCheck(Account, PublicIp, cb){
   session.pingHost (PublicIp, function (err, target) {
     if (err)
       if (err instanceof ping.RequestTimedOutError)
-        msg = "Ping Err: Not alive.";
+        msg = "Ping Error: Not alive.";
       else
-        msg = "Ping Err: " + err.toString() + ".";
+        msg = "Ping Error: " + err.toString() + ".";
     else
       msg = "Ping Alive.";
     return cb(err, Account, PublicIp, msg);
