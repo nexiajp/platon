@@ -20,21 +20,33 @@ var PingOptions = {
     ttl: 128
 };
 
-JsonGet(Conf.Ping[0].JsonURL, function(err,json){
-  if(err){
-    errlog("Error: Json Data, URL: %s", Conf.Ping[0].JsonURL);
-    JsonGet(Conf.Ping[0].JsonSlave, function(err,json){
+Main();
+if( Conf.Ping[0].Loop === false ) return;
+var count = 1;
+setInterval(function(){
+  log("count = %d", count);
+  if( Main() === false) return;
+  if( count++ > 999) count = 1;
+}, Conf.Ping[0].TimeWateMin * 60 * 1000 );
+
+function Main(){
+  for (var i in Conf.Ping) {
+    JsonGet(Conf.Ping[i].JsonURL, function(err,json){
       if(err){
-        errlog("Error: Json Data, URL: %s", Conf.Ping[0].JsonSlave);
-        return;
+        var msg = "Error: Ping Json Data, URL: " +  Conf.Ping[i].JsonURL;
+        var AlertObj = {Alert: msg, CheckHost: Conf.MyHost};
+        log(msg);
+        AlertSend(AlertObj, function(err, res){ if(err) log(res); });
+        return false;
       }
+      var DataObj = JSON.parse(json);
+      if(!isObject(DataObj.ec2IPs)){ log("Error: Json Data NG"); return; }
+      if(  isEmpty(DataObj.ec2IPs)){ log("Error: Json Data Null"); return; }
+      log("Start ping check....." + ( new Date() ).toString() );
+      var p = ipParse(DataObj);
     });
   }
-  var DataObj = JSON.parse(json);
-  if(!isObject(DataObj.ec2IPs)){ errlog("Error: Json Data"); return; }
-
-  var p = ipParse(DataObj);
-});
+}
 
 function ipParse(obj){
   var DataObj = extend({}, obj);
@@ -42,11 +54,18 @@ function ipParse(obj){
     for(var j in DataObj.ec2IPs[i].EIPs){
       var Account  = extend({}, DataObj.ec2IPs[i]);
       var PublicIp = DataObj.ec2IPs[i].EIPs[j].PublicIp;
-      var c = PingCheck(Account, PublicIp, function(err, Account, PublicIp, target){
-        if(!err) log("Ping OK. Profile: %s. ip: %s target : %s", Account.Profile, PublicIp, target);
+      var c = PingCheck(Account, PublicIp, function(err, Account, PublicIp, msg){
+        if(!err) log("%s Profile: %s - %s", msg, Account.Profile, PublicIp);
         else{
-          log("Ping Error. Profile: %s. ip: %s target: %s", Account.Profile, PublicIp, target);
-          AlertSend(Account,PublicIp);
+          log("%s Profile: %s - %s", msg, Account.Profile, PublicIp);
+          var AlertObj = {};
+          AlertObj.Alert = msg;
+          AlertObj.Profile = Account.Profile;
+          AlertObj.PublicIp = PublicIp;
+          AlertObj.CheckHost = Conf.MyHost;
+          AlertSend(AlertObj, function(err, res){
+            if(err) log(res);
+          });
         }
       });
     }
@@ -54,18 +73,17 @@ function ipParse(obj){
 }
 
 function PingCheck(Account, PublicIp, cb){
-  log("ping start..... " + PublicIp);
+  var msg = '';
   var session = ping.createSession (PingOptions);
-  session.pingHost (PublicIp, function (error, target) {
-    if (error)
-      if (error instanceof ping.RequestTimedOutError)
-        console.log (target + ": Not alive");
+  session.pingHost (PublicIp, function (err, target) {
+    if (err)
+      if (err instanceof ping.RequestTimedOutError)
+        msg = "Ping Err: Not alive.";
       else
-        console.log (target + ": " + error.toString ());
+        msg = "Ping Err: " + err.toString() + ".";
     else
-      console.log (target + ": Alive");
-    log("ping check end.");
-    return cb(error, Account, PublicIp, target);
+      msg = "Ping Alive.";
+    return cb(err, Account, PublicIp, msg);
   });
 }
 
@@ -80,9 +98,19 @@ function JsonGet(url, cb){
   });
 }
 
-function AlertSend(Account,PublicIp){
-  log("AlertSend: %s", PublicIp);
-  return;
+function AlertSend(AlertObj, cb){
+  var Params = {
+    uri:  Conf.AlertURL,
+    form: AlertObj,
+    json: true
+  };
+  request.post(Params, function(err, res, body){
+    if (!err && res.statusCode == 200) {
+      cb(null, body);
+    } else {
+      cb(err,'Error: '+ res.statusCode + ". " + err.toString());
+    }
+  });
 }
 
 function IPlistView(obj){
