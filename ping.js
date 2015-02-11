@@ -6,6 +6,9 @@ var request  = require('request');
 var isEmpty  = require('./isEmpty');
 var isObject = require('./isObject');
 var ping     = require("net-ping");
+var argv     = require('argv');
+
+var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
 var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Config.json', 'UTF-8' ) );
 if(!isObject(Conf)) return;
@@ -20,20 +23,59 @@ var PingOptions = {
     ttl: 128
 };
 
+argv.option([
+  {
+    name: 'view',
+    short: 'v',
+    type : 'string',
+    description :'Confing Json View.',
+    example: "'"+scriptname+" -v'"
+  },
+  {
+    name: 'profile',
+    short: 'p',
+    type : 'string',
+    description :'Ping List Filter as Profile Name.',
+    example: "'"+scriptname+" --profile=value' or '"+scriptname+" -p value'"
+  },
+  {
+    name: 'loop',
+    short: 'l',
+    type : 'boolean',
+    description :'loop on . --loop=1 is enable, --loop=0 is disable',
+    example: "'"+scriptname+" --loop=1' or '"+scriptname+" -l 0'"
+  },
+  {
+    name: 'time',
+    short: 't',
+    type : 'int',
+    description :'check Loop Time Wate Minute.',
+    example: "'"+scriptname+" --time=10' or '"+scriptname+" -t 10'"
+  }
+]);
+
+var args = argv.run();
+if(args.options.view) { log(JSON.stringify(Conf, null, "    ")); return; }
+var Profile = args.options.profile ? args.options.profile : null;
+var TimeWateMin = args.options.time ? args.options.time : Conf.Ping[0].TimeWateMin;
+var Loop = Conf.Ping[0].Loop;
+if( args.options.loop != null) Loop = args.options.loop;
+
 Main();
-if( Conf.Ping[0].Loop === false ) return;
+if( Loop === false ) return;
 var count = 1;
 setInterval(function(){
   log("count = %d", count);
   if( Main() === false) return;
   if( count++ > 999) count = 1;
-}, Conf.Ping[0].TimeWateMin * 60 * 1000 );
+}, TimeWateMin * 60 * 1000 );
 
 function Main(){
   for (var i in Conf.Ping) {
-    JsonGet(Conf.Ping[i].JsonURL, function(err,json){
+    var url = Profile ? Conf.Ping[i].JsonURL+'?p='+Profile : Conf.Ping[i].JsonURL;
+    JsonGet(url, function(err,json){
       if(err){
-        var msg = "Error: Ping Json Data, URL: " +  Conf.Ping[i].JsonURL;
+        var msg = "Error: Ping Json Data, URL: " +  url;
         var AlertObj = {Alert: msg, CheckHost: Conf.MyHost};
         log(msg);
         AlertSend(AlertObj, function(err, res){ if(err) log(res); });
@@ -111,10 +153,4 @@ function AlertSend(AlertObj, cb){
       cb(err,'Error: '+ res.statusCode + ". " + err.toString());
     }
   });
-}
-
-function IPlistView(obj){
-  for(var i in obj.IPs)
-    log(obj.IPs[i]);
-  return true;
 }
