@@ -105,9 +105,7 @@ function ipParse(obj){
           AlertObj.Profile = Account.Profile;
           AlertObj.PublicIp = PublicIp;
           AlertObj.CheckHost = Conf.MyHost;
-          AlertSend(AlertObj, function(err, res){
-            if(err) log(res);
-          });
+          AlertSend(AlertObj, function(err, res){ if(err) log(res); });
         }
       });
     }
