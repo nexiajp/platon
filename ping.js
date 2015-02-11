@@ -22,6 +22,7 @@ var PingOptions = {
     timeout: 2000,
     ttl: 128
 };
+var session = ping.createSession (PingOptions);
 
 argv.option([
   {
@@ -82,8 +83,8 @@ function Main(){
         return false;
       }
       var DataObj = JSON.parse(json);
-      if(!isObject(DataObj.ec2IPs)){ log("Error: Json Data NG"); return; }
-      if(  isEmpty(DataObj.ec2IPs)){ log("Error: Json Data Null"); return; }
+      if(!isObject(DataObj.ec2IPs)){ log("Error: Json Data NG"); return false; }
+      if(  isEmpty(DataObj.ec2IPs)){ log("Error: Json Data Null"); return false; }
       log("Start ping check....." + ( new Date() ).toString() );
       var p = ipParse(DataObj);
     });
@@ -116,7 +117,6 @@ function ipParse(obj){
 
 function PingCheck(Account, PublicIp, cb){
   var msg = '';
-  var session = ping.createSession (PingOptions);
   session.pingHost (PublicIp, function (err, target) {
     if (err)
       if (err instanceof ping.RequestTimedOutError)
