@@ -3,6 +3,22 @@ var log   = console.log;
 var dns   = require('dns');
 var async = require('async')
 
+var IPs = [
+  "54.65.158.4",
+  "www.google.co.jp",
+  "www.yahoo.co.jp",
+  "54.65.57.39",
+  "abc.nexia.jp"
+];
+
+if ( process.argv[2] ){
+  var reg = new RegExp( "-v", "i" );
+  if( process.argv[2].match(reg) ) {
+    log(IPs);
+    return;
+  }
+}
+
 // ping Default options
 var PingOptions = {
     networkProtocol: ping.NetworkProtocol.IPv4,
@@ -14,37 +30,62 @@ var PingOptions = {
 };
 var session = ping.createSession (PingOptions);
 
-var IPs = [
-  "54.65.158.4",
-  "www.google.co.jp",
-  "www.yahoo.co.jp",
-  "54.65.57.39",
-  "abc.nexia.jp"
-];
 var reg = new RegExp( '^\\d+\\.\\d+\\.\\d+\\.\\d+$' );
 
-for(var i in IPs){
+/*
+var len = IPs.length;
+//for(var i in IPs){
+for(var i=0; i<len; i++){
   var host = IPs[i];
   if(host.match(reg)){
-    PingCheck(host, null);
+    var ip = host;
+    PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
   }else{
-    HostPingCheck(host, function(err, res){
-      if(err) log(res + "err.code: " + err);
-      else PingCheck(res, host);
+    dnsLokkup(host, function(err, ip){
+      if(err)
+        log(host + ' : ' + ip + "err.code: " + err);
+      else
+        PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
     });
   }
 }
 return;
+*/
 
-function HostPingCheck(host,cb){
+async.each(IPs, function(host, callback){
+  if(host.match(reg)){
+    var ip = host;
+    PingCheck(ip, function(err, msg){
+      log(host + ' : ' + msg);
+      callback();
+    });
+  }else{
+    dnsLokkup(host, function(err, ip){
+      if(err){
+        log(host + ' : ' + ip + "err.code: " + err);
+        callback();
+      }
+      else{
+        PingCheck(ip, function(err, msg){
+          log(host + ' : ' + msg);
+          callback();
+        });
+      }
+    });
+  }
+}, function(err){
+    if(err) throw err;
+    log("Ping Check End.")
+});
+
+function dnsLokkup(host, cb){
   dns.lookup(host, 4, function(err, address){
-    if(err) cb(err,"Error: dns.lookup. " + address);
-    else cb(null,address);
+    if(err) cb(err, "Error: dns.lookup. " + address);
+    else    cb(null, address);
   });
 }
 
-function PingCheck(ip, host){
-  var name = host ? host : '';
+function PingCheck(ip, cb){
   session.pingHost (ip, function (err, target) {
     if (err)
       if (err instanceof ping.RequestTimedOutError)
@@ -53,6 +94,6 @@ function PingCheck(ip, host){
         msg = "Ping Error: " + target + " " + err.toString() + ".";
     else
       msg   = "Ping Alive: " + target;
-    log(msg + " " + host);
+    cb(null, msg);
   });
 }
