@@ -8,7 +8,8 @@ var IPs = [
   "www.google.co.jp",
   "www.yahoo.co.jp",
   "54.65.57.39",
-  "abc.nexia.jp"
+  "abc.nexia.jp",
+  "soy.nexia.jp"
 ];
 
 if ( process.argv[2] ){
@@ -33,6 +34,9 @@ var session = ping.createSession (PingOptions);
 var reg = new RegExp( '^\\d+\\.\\d+\\.\\d+\\.\\d+$' );
 
 /*
+//
+// for
+//
 var len = IPs.length;
 //for(var i in IPs){
 for(var i=0; i<len; i++){
@@ -44,14 +48,100 @@ for(var i=0; i<len; i++){
     dnsLokkup(host, function(err, ip){
       if(err)
         log(host + ' : ' + ip + "err.code: " + err);
-      else
+      else{
+        log("NameHost : " + host + ", IP : " + ip);
         PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+      }
     });
   }
 }
 return;
 */
 
+/*
+//
+// function to value
+//
+for(var i in IPs){
+  var host = IPs[i];
+  var a = HostFunc(host);
+}
+function HostFunc(host){
+  if(host.match(reg)){
+    var ip = host;
+    PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+  }else{
+    dnsLokkup(host, function(err, ip){
+      if(err)
+        log(host + ' : ' + ip + "err.code: " + err);
+      else{
+        log("NameHost : " + host + ", IP : " + ip);
+        PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+      }
+    });
+  }
+}
+return;
+*/
+
+/*
+//
+// function to object
+//
+var b = HostFuncObj(IPs);
+function HostFuncObj(obj){
+  var len = obj.length;
+  for(var i=0; i<len; i++){
+    var host = obj[i];
+    if(host.match(reg)){
+      var ip = host;
+      PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+    }else{
+      dnsLokkup(host, function(err, ip){
+        if(err)
+          log(host + ' : ' + ip + "err.code: " + err);
+        else{
+          log("NameHost : " + host + ", IP : " + ip);
+          PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+        }
+      });
+    }
+  }
+}
+return;
+*/
+
+//
+// function self call
+//
+(function next(i) {
+  if (i === IPs.length) {
+    return;
+  }
+
+  var host = IPs[i];
+  if(host.match(reg)){
+    var ip = host;
+    PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+  }else{
+    dnsLokkup(host, function(err, ip){
+      if(err)
+        log(host + ' : ' + ip + "err.code: " + err);
+      else{
+        log("NameHost : " + host + ", IP : " + ip);
+        PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+      }
+    });
+  }
+
+  next(i + 1);
+})(0);
+return;
+
+/*
+//
+// async module
+//
 async.each(IPs, function(host, callback){
   if(host.match(reg)){
     var ip = host;
@@ -77,6 +167,8 @@ async.each(IPs, function(host, callback){
     if(err) throw err;
     log("Ping Check End.")
 });
+return;
+*/
 
 function dnsLokkup(host, cb){
   dns.lookup(host, 4, function(err, address){
