@@ -13,17 +13,6 @@ var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Config.json', 'UTF-8' ) );
 if(!isObject(Conf)) return;
 
-// ping Default options
-var PingOptions = {
-    networkProtocol: ping.NetworkProtocol.IPv4,
-    packetSize: 16,
-    retries: 3,
-    sessionId: (process.pid % 65535),
-    timeout: 2000,
-    ttl: 128
-};
-var session = ping.createSession (PingOptions);
-
 argv.option([
   {
     name: 'view',
@@ -61,6 +50,17 @@ var Profile = args.options.profile ? args.options.profile : null;
 var TimeWateMin = args.options.time ? args.options.time : Conf.Ping[0].TimeWateMin;
 var Loop = Conf.Ping[0].Loop;
 if( args.options.loop != null) Loop = args.options.loop;
+
+// ping Default options
+var PingOptions = {
+    networkProtocol: ping.NetworkProtocol.IPv4,
+    packetSize: 16,
+    retries: 3,
+    sessionId: (process.pid % 65535),
+    timeout: 2000,
+    ttl: 128
+};
+var session = ping.createSession (PingOptions);
 
 Main();
 if( Loop === false ) return;
