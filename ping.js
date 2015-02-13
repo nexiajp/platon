@@ -7,6 +7,7 @@ var isEmpty  = require('./isEmpty');
 var isObject = require('./isObject');
 var ping     = require("net-ping");
 var argv     = require('argv');
+var os       = require("os");
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
@@ -77,7 +78,7 @@ function Main(){
     JsonGet(url, function(err,json){
       if(err){
         var msg = "Error: Ping Json Data, URL: " +  url;
-        var AlertObj = {Alert: msg, CheckHost: Conf.MyHost};
+        var AlertObj = {Alert: msg, CheckHost: os.hostname()};
         log(msg);
         AlertSend(AlertObj, function(err, res){ if(err) log(res); });
         return false;
@@ -105,7 +106,7 @@ function ipParse(obj){
           AlertObj.Alert = msg;
           AlertObj.Profile = Account.Profile;
           AlertObj.PublicIp = PublicIp;
-          AlertObj.CheckHost = Conf.MyHost;
+          AlertObj.CheckHost = os.hostname();
           AlertSend(AlertObj, function(err, res){ if(err) log(res); });
         }
       });

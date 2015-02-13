@@ -136,6 +136,8 @@ return;
 
   next(i + 1);
 })(0);
+var os = require("os");
+log("This hostname : " + os.hostname());
 return;
 
 /*
