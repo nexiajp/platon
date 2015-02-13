@@ -148,7 +148,7 @@ function AlertSend(AlertObj, cb){
     if (!err && res.statusCode == 200) {
       cb(null, body);
     } else {
-      cb(err,'Error: '+ res.statusCode + ". " + err.toString());
+      cb(err,'Error: '+ res.statusCode + ".\n" + body);
     }
   });
 }
