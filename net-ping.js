@@ -2,15 +2,22 @@ var ping  = require("net-ping");
 var log   = console.log;
 var dns   = require('dns');
 var async = require('async')
+var os    = require("os");
+var request  = require('request');
 
 var IPs = [
-  "54.65.158.4",
+//  "54.65.158.4",
   "www.google.co.jp",
   "www.yahoo.co.jp",
+  "112.78.205.43",
+  "112.78.205.44",
+  "112.78.205.45",
   "54.65.57.39",
-  "abc.nexia.jp",
+//  "abc.nexia.jp",
   "soy.nexia.jp"
 ];
+
+var AlertURL = "http://localhost:9090/platon/alert";
 
 if ( process.argv[2] ){
   var reg = new RegExp( "-v", "i" );
@@ -122,22 +129,26 @@ return;
   var host = IPs[i];
   if(host.match(reg)){
     var ip = host;
-    PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+    PingCheck(ip, function(err, msg){
+      log(host + ' : ' + msg);
+      if(err) Alart(msg, "testAccount", ip);
+    });
   }else{
     dnsLokkup(host, function(err, ip){
       if(err)
         log(host + ' : ' + ip + "err.code: " + err);
       else{
         log("NameHost : " + host + ", IP : " + ip);
-        PingCheck(ip, function(err, msg){ log(host + ' : ' + msg); });
+        PingCheck(ip, function(err, msg){
+          log(host + ' : ' + msg);
+          if(err) Alart(msg, "testAccount", ip);
+        });
       }
     });
   }
 
   next(i + 1);
 })(0);
-var os = require("os");
-log("This hostname : " + os.hostname());
 return;
 
 /*
@@ -188,6 +199,42 @@ function PingCheck(ip, cb){
         msg = "Ping Error: " + target + " " + err.toString() + ".";
     else
       msg   = "Ping Alive: " + target;
-    cb(null, msg);
+    cb(err, msg);
+  });
+}
+
+function Alart(msg, Profile, PublicIp){
+  var msg = "Ping Error: Not alive.";
+  var AlertObj = AlertJsonMake (msg, Profile, PublicIp);
+  AlertSend(AlertObj, function(err, res){
+    if(err) log(res);
+  });
+}
+
+function AlertJsonMake (msg, Profile, PublicIp){
+  var AlertObj = {};
+  AlertObj.Alert = msg;
+  AlertObj.Profile = Profile;
+  AlertObj.PublicIp = PublicIp;
+  AlertObj.CheckHost = os.hostname();
+  return AlertObj;
+}
+
+function AlertSend(AlertObj, cb){
+  // test return
+  log("test return:")
+  log(AlertObj);
+  return cb(null,"test return");
+  var Params = {
+    form: AlertObj,
+    uri:  AlertURL,
+    json: true
+  };
+  request.post(Params, function(err, res, body){
+    if (!err && res.statusCode == 200) {
+      cb(null, body);
+    } else {
+      cb(err,'Error: '+ res.statusCode + ".\n" + body);
+    }
   });
 }
