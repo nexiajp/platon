@@ -222,11 +222,11 @@ function AlertJsonMake (msg, Profile, PublicIp){
 
 function AlertSend(AlertObj, cb){
   // test return
-  log("test return:")
-  log(AlertObj);
-  return cb(null,"test return");
+  //log("test return:")
+  //log(AlertObj);
+  //return cb(null,"test return");
   var Params = {
-    form: AlertObj,
+    form: JSON.stringify(AlertObj, null, "    "),
     uri:  AlertURL,
     json: true
   };

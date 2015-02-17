@@ -12,7 +12,7 @@ http.createServer(function (req, res) {
         var obj = JSON.parse(body);
         if (! obj.Alert) {
           log("%s - Error Not Implemented. %s", (new Date()), req.ip);
-          res.writeHead(403, {'Content-Type':'application/json; charset=utf-8'});
+          res.writeHead(501, {'Content-Type':'application/json; charset=utf-8'});
           res.end('{"result":"Error Not Implemented"}\n');
         } else {
           log("%s - Platon Alert Request POST. %s", (new Date()), req.ip);
@@ -23,10 +23,14 @@ http.createServer(function (req, res) {
           res.end('{"result":"Alert POST OK"}\n');
         }
       } catch (e) {
-        log("%s -   Fail this request. %s", (new Date()), req.ip);
-        res.writeHead(501, {'Content-Type':'application/json; charset=utf-8'});
-        res.end('{"result":"Fail this request."}\n');
+        log("%s - 406 Not Acceptable. %s", (new Date()), req.ip);
+        log(body);
+        res.writeHead(406, {'Content-Type':'application/json; charset=utf-8'});
+        res.end('{"result":"406 Not Acceptable."}\n');
       }
     });
+  }else{
+    res.writeHead(403, {'Content-Type': 'text/plain'});
+    res.end('403 Forbidden\n');
   }
 }).listen(9090);
