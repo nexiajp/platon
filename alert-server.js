@@ -9,13 +9,14 @@ http.createServer(function (req, res) {
     });
     req.on('end',function(){
       try {
+        var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         var obj = JSON.parse(body);
         if (! obj.Alert) {
-          log("%s - Error Not Implemented. %s", (new Date()), req.ip);
+          log("%s - Error Not Implemented. %s", (new Date()), ip);
           res.writeHead(501, {'Content-Type':'application/json; charset=utf-8'});
           res.end('{"result":"Error Not Implemented"}\n');
         } else {
-          log("%s - Platon Alert Request POST. %s", (new Date()), req.ip);
+          log("%s - Platon Alert Request POST. %s", (new Date()), ip);
           text = JSON.stringify(obj, null, "    ");
           log(text);
           //res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -23,7 +24,7 @@ http.createServer(function (req, res) {
           res.end('{"result":"Alert POST OK"}\n');
         }
       } catch (e) {
-        log("%s - 406 Not Acceptable. %s", (new Date()), req.ip);
+        log("%s - 406 Not Acceptable. %s", (new Date()), ip);
         log(body);
         res.writeHead(406, {'Content-Type':'application/json; charset=utf-8'});
         res.end('{"result":"406 Not Acceptable."}\n');
