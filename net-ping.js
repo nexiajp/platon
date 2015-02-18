@@ -226,7 +226,8 @@ function AlertSend(AlertObj, cb){
   //log(AlertObj);
   //return cb(null,"test return");
   var Params = {
-    form: JSON.stringify(AlertObj, null, "    "),
+//    form: JSON.stringify(AlertObj, null, "    "),
+    form: AlertObj,
     uri:  AlertURL,
     json: true
   };
