@@ -74,6 +74,8 @@ setInterval(function(){
 
 function Main(){
   for (var i in Conf.Ping) {
+    var keys = Object.keys(Conf.Ping[i]);
+    if (keys.indexOf("Disable")  > -1) continue;
     var url = Profile ? Conf.Ping[i].JsonURL+'?p='+Profile : Conf.Ping[i].JsonURL;
     JsonGet(url, function(err,json){
       if(err){
@@ -96,6 +98,9 @@ function ipParse(obj){
   var DataObj = extend({}, obj);
   for(var i in DataObj.ec2IPs){
     for(var j in DataObj.ec2IPs[i].EIPs){
+      var keys = Object.keys(DataObj.ec2IPs[i].EIPs[j]);
+      if (keys.indexOf("Disable")  > -1) continue;
+      if (keys.indexOf("PublicIp") <  0) continue;
       var Account  = extend({}, DataObj.ec2IPs[i]);
       var PublicIp = DataObj.ec2IPs[i].EIPs[j].PublicIp;
       var c = PingCheck(Account, PublicIp, function(err, Account, PublicIp, msg){
@@ -129,7 +134,11 @@ function PingCheck(Account, PublicIp, cb){
 }
 
 function JsonGet(url, cb){
-  request(url, function (err, res, body) {
+  var options = {
+    url: url,
+    headers: { 'User-Agent': 'curl' }
+  };
+  request(options, function (err, res, body) {
     if (err || res.statusCode != 200) {
       errlog("Error: " + err);
       errlog("Status: %d", res.statusCode);

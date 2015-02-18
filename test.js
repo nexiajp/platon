@@ -6,12 +6,20 @@ var request = require('request');
 var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Config.json', 'UTF-8' ) );
 var DataObj = {};
 
-request(Conf.Ping[0].JsonURL, function (err, res, body) {
+var num = 0;
+if (Conf.Ping.length > 1) num = 1;
+
+var options = {
+  url: Conf.Ping[num].JsonURL,
+  headers: { 'User-Agent': 'curl' }
+};
+
+request(options, function (err, res, body) {
   if (err || res.statusCode != 200) {
   	errlog("Error: " + err);
   	errlog("Status: %d", res.statusCode);
   }else{
-  	//log(body);
+  	log(body);
   	DataObj.ec2IPs = JSON.parse(body).ec2IPs;
   	var obj = {IPs: []};
   	for(var i in DataObj.ec2IPs){

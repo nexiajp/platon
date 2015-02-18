@@ -49,7 +49,7 @@ http.createServer(function (req, res) {
  **** test command *****
  $ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "sender=curl" -d "Alert=aaaa"  http://localhost:9090/platon/alert
  $ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "sender=curl" -d "alert=aaaa"  http://localhost:9090/platon/alert
- $ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "@/tmp/alert.json"  http://localhost:9090/platon/alert{"result":"Alert POST OK"}
+ $ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "@/tmp/alert.json"  http://localhost:9090/platon/alert
  $ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "@/tmp/test.json"  http://localhost:9090/platon/alert
  *****
  */
