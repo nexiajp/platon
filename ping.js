@@ -11,6 +11,7 @@ var os       = require("os");
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
+
 var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Config.json', 'UTF-8' ) );
 if(!isObject(Conf)) return;
 
