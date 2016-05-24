@@ -44,7 +44,7 @@ function getPingList (callback) {
         if( typeof List.Disable !== 'undefined' && List.Disable === true ) return next();
         if( typeof List.JsonURL !== 'undefined' ) {
           JsonGet(List.JsonURL, function(err, res, body){
-            if(err) error("getPingList JsonGet err: %s", err);
+            if(err) error("getPingList JsonGet url: %s err: %s", List.JsonURL, err);
             else if( body.IPs !== 'undefined' ){
               Array.prototype.push.apply(tmpList, body.IPs);
             }
@@ -84,8 +84,8 @@ function getServiceList (callback) {
             if( typeof Inc.Disable !== 'undefined' && Inc.Disable === true ) return next();
             if( typeof Inc.URL === 'undefined' ) return next();
 
-            JsonGet(Inc.JsonURL, function(err, res, body){
-              if(err) error("getServiceList JsonGet err: %s", err);
+            JsonGet(Inc.URL, function(err, res, body){
+              if(err) error("getServiceList JsonGet url %s err: %s", Inc.URL, err);
               else if( body.ServiceList !== 'undefined' ){
                 Array.prototype.push.apply(tmpList, body.ServiceList);
               }
