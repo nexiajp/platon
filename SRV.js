@@ -7,30 +7,184 @@ debug.log = console.log.bind(console);
 var error = console.error;
 var log   = console.log;
 
-var request    = require('request');
-var express    = require('express');
-var isEmpty    = require('./isEmpty');
-var extend     = require('util')._extend
-var async      = require('async');
+var fs       = require('fs');
+var dns      = require('dns');
+var request  = require('request');
+var express  = require('express');
+var isEmpty  = require('./isEmpty');
+var extend   = require('util')._extend
+var async    = require('async');
+var AWS      = require('aws-sdk');
 
-var IPsList     = new Array();
+var IPsList     = {};
 var ServiceList = new Array();
+var ProfileList = new Array();
+
+var CredentialsFile = process.env.HOME + '/.aws/credentials';
+
+
+function getAWSProfiles(callback){
+
+  fs.readFile(CredentialsFile, 'utf8', function (err, data) {
+
+    var tmpList = new Array();
+    var tmpProfile, tmpRegion;
+
+    if (err) callback("getAWSProfiles func readFile err: " + err);
+    else {
+      var lines = data.split("\n");
+
+      async.each(lines, function(l, next) {
+        var line = l.trim();
+
+        if( line.match( /^\[/ ) ){
+          if( ! line.match(/\[preview\]/) && ! line.match(/\[default\]/) && ! line.match(/\[stop/) ) {
+            tmpProfile = line.replace(/^\[/, '').replace(/\].*$/, '');
+          }
+        }
+
+        if( line.match( /^region\s+=/ ) ) {
+          tmpRegion = line.replace( /^region\s+=\s+/, '' );
+          if( tmpProfile ){
+            tmpList.push({ profile: tmpProfile, region: tmpRegion });
+          }
+        }
+        next();
+      },
+      function(err){
+        ProfileList = extend([], tmpList);
+        callback(err);
+      });
+
+    }
+
+  });
+
+}
+
+function getEIPs(callback){
+
+  var tmpEIPs = new Array();
+
+  async.each(ProfileList, function(List, next){
+
+    var credentials = new AWS.SharedIniFileCredentials(
+      {
+        filename: CredentialsFile,
+        profile : List.profile
+      }
+    );
+    AWS.config.credentials = credentials;
+    AWS.config.region      = List.region;
+
+    var ec2 = new AWS.EC2({apiVersion: '2015-10-01'});
+    var params = {};
+    ec2.describeAddresses(params, function(err, data) {
+      if (err) {
+        if(err.statusCode !== 403) {
+          error("getEIPs func ec2.describeAddresses profile: %s err: %s", List.profile, JsonString(err));
+        }
+        next();
+      } else {
+        if ( data.Addresses.length  < 1 ) next();
+        else {
+
+          var obj = {};
+          obj.Profile = List.profile;
+          obj.FunctionName = "platonIPcheck";
+          obj.EIPs = new Array();
+          async.each(data.Addresses, function(Addr, done){
+            if( typeof Addr.PublicIp !== 'undefined' && typeof Addr.InstanceId !== 'undefined') {
+              dns.reverse(Addr.PublicIp, function(err, name){
+                var PublicDnsName;
+                if ( !err && name.length > 0 ) {
+                  if ( name[0].match(/.compute.amazonaws.com/) ) PublicDnsName = Addr.InstanceId;
+                  else PublicDnsName = name[0];
+                } else {
+                  PublicDnsName = Addr.InstanceId;
+                }
+                var buf = {
+                  PublicIp: Addr.PublicIp,
+                  PublicDnsName: PublicDnsName,
+                  InstanceId: Addr.InstanceId,
+                  PrivateIpAddress: Addr.PrivateIpAddress
+                };
+                obj.EIPs.push(buf);
+                done();
+              });
+            } else {
+              done();
+            }
+          },
+          function(err){
+            // debug("obj: %s", JsonString(obj));
+            if( obj.EIPs.length > 0 ) tmpEIPs.push(obj);
+            next();
+          });
+
+        }
+      }
+    });
+
+  },
+  function(err){
+    // debug("tmpEIPs: %s", JsonString(tmpEIPs));
+    if( typeof IPsList.PingList !== 'undefined' ) {
+      Array.prototype.push.apply(IPsList.PingList, tmpEIPs);
+    } else {
+      IPsList.PingLis = extend([], tmpEIPs);
+    }
+
+    callback(err);
+  });
+
+}
+
 
 
 (function loop(){
   log('SRV Loop ( %d ).....', Conf.LoopTime);
 
-  var P = getPingList(function(err){
-    if(err) error("getPingList err: %s", err);
-    debug("IPsList: %s", JsonString(IPsList));
-  });
+  async.series([
+    function(done){
 
-  var S = getServiceList(function(err){
-    if(err) error("getServiceList err: %s", err);
-    debug("ServiceList: %s", JsonString(ServiceList));
-  });
+      var P = getPingList(function(err){
+        if(err) error("getPingList err: %s", err);
+        // debug("IPsList: %s", JsonString(IPsList));
+        done(null);
+      });
 
-  setTimeout(loop, Conf.LoopTime);
+    },
+    function(done){
+
+      var S = getServiceList(function(err){
+        if(err) error("getServiceList err: %s", err);
+        // debug("ServiceList: %s", JsonString(ServiceList));
+        done(null);
+      });
+
+    },
+    function(done){
+
+      var G = getAWSProfiles(function(err){
+        if(err) error("getAWSProfiles func err: %s", err);
+
+        // debug("ProfileList: %s", JsonString(ProfileList));
+
+        var GI = getEIPs(function(err){
+          if(err) error("getEIPs func err: %s", err);
+          done(null);
+        });
+
+      });
+
+    }
+    ], function(err, results) {
+
+      setTimeout(loop, Conf.LoopTime);
+
+    });
+
 })();
 
 function getPingList (callback) {
@@ -55,7 +209,12 @@ function getPingList (callback) {
         }
       }, function(err){
         if(err) error("getPingList async.each err: %s", err);
-        else IPsList = extend([], tmpList);
+        else{
+          var obj = {};
+          obj.PingList = tmpList;
+          if( typeof body.Exclude !== 'undefined' ) obj.Exclude = body.Exclude;
+          IPsList = extend({}, obj);
+        }
         callback(null);
       });
     }
@@ -138,6 +297,16 @@ app.get('/ServiceList', function (req, res) {
   res.send(JsonString(ServiceList));
 });
 
+app.get('/ProfileList', function (req, res) {
+  res.send(JsonString(ProfileList));
+});
+
+app.post('/Alert', function(req, res) {
+  debug("/Alert Request body: %s", JsonString(req.body));
+  if(DataCheck(req.body) === false) res.send( { Status : "Error Data not Object." } );
+  else res.send( { Status : "OK" } );
+});
+
 app.listen(Conf.ListenPort);
 
 function JsonLog(obj){
@@ -146,6 +315,15 @@ function JsonLog(obj){
 
 function JsonString(obj) {
   return JSON.stringify(obj, null, "    ");
+}
+
+function DataCheck (body) {
+  try{
+    if(isEmpty(extend({}, body))) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function JsonGet (url, cb) {

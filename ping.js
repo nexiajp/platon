@@ -1,5 +1,13 @@
-var log      = console.log;
-var errlog   = console.error;
+'use strict';
+
+var Conf  = require('./.Conf-Srv.json');
+var Gdns  = '8.8.8.8';
+
+var debug = require('debug')('PING');
+debug.log = console.log.bind(console);
+var error = console.error;
+var log   = console.log;
+
 var extend   = require('util')._extend;
 var fs       = require('fs');
 var request  = require('request');
@@ -8,18 +16,19 @@ var isObject = require('./isObject');
 var ping     = require("net-ping");
 var argv     = require('argv');
 var os       = require("os");
+var moment   = require('moment');
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
 
-var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Config.json', 'UTF-8' ) );
+var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Conf-Ping.json', 'UTF-8' ) );
 if(!isObject(Conf)) return;
 
 argv.option([
   {
     name: 'view',
     short: 'v',
-    type : 'string',
+    type : 'boolean',
     description :'Confing Json View.',
     example: "'"+scriptname+" -v'"
   },
@@ -33,9 +42,9 @@ argv.option([
   {
     name: 'loop',
     short: 'l',
-    type : 'boolean',
-    description :'loop on . --loop=1 is enable, --loop=0 is disable',
-    example: "'"+scriptname+" --loop=1' or '"+scriptname+" -l 0'"
+    type : 'int',
+    description :'loop on . 0 is loop,  not loop count.',
+    example: "'"+scriptname+" --loop=0' or '"+scriptname+" -l 3'"
   },
   {
     name: 'time',
@@ -47,107 +56,166 @@ argv.option([
 ]);
 
 var args = argv.run();
-if(args.options.view) { log(JSON.stringify(Conf, null, "    ")); return; }
-var Profile = args.options.profile ? args.options.profile : null;
-var TimeWateMin = args.options.time ? args.options.time : Conf.Ping[0].TimeWateMin;
-var Loop = Conf.Ping[0].Loop;
-if( args.options.loop != null) Loop = args.options.loop;
+var opt  = args.options;
+
+if (Object.keys(opt).length < 1 || opt["help"] ){
+  argv.help();
+  process.exit(0);
+}
+
+if(typeof opt["view"] !== 'undefined') return log("Conf-Ping: %s", JsonString(Conf));
+var Profile  = opt["profile"] ? opt["profile"] : null;
+var LoopTime = opt["time"] ? opt["time"] : Conf.LoopTime;
+var Loop     = opt["loop"] ? opt["loop"] : Conf.Loop;
 
 // ping Default options
 var PingOptions = {
     networkProtocol: ping.NetworkProtocol.IPv4,
     packetSize: 16,
-    retries: 3,
+    retries: 10,
     sessionId: (process.pid % 65535),
-    timeout: 2000,
+    timeout: 15000,
     ttl: 128
 };
-var session = ping.createSession (PingOptions);
 
-Main();
-if( Loop === false ) return;
-var count = 1;
-setInterval(function(){
-  log("count = %d", count);
-  if( Main() === false) return;
-  if( count++ > 999) count = 1;
-}, TimeWateMin * 60 * 1000 );
+var IPsList = {};
+var Exclude = {};
 
-function Main(){
-  for (var i in Conf.Ping) {
-    var keys = Object.keys(Conf.Ping[i]);
-    if (keys.indexOf("Disable")  > -1) continue;
-    var url = Profile ? Conf.Ping[i].JsonURL+'?p='+Profile : Conf.Ping[i].JsonURL;
-    JsonGet(url, function(err,json){
-      if(err){
-        var msg = "Error: Ping Json Data, URL: " +  url;
-        var AlertObj = {Alert: msg, CheckHost: os.hostname()};
-        log(msg);
-        AlertSend(AlertObj, function(err, res){ if(err) log(res); });
-        return false;
-      }
-      var DataObj = JSON.parse(json);
-      if(!isObject(DataObj.ec2IPs)){ log("Error: Json Data NG"); return false; }
-      if(  isEmpty(DataObj.ec2IPs)){ log("Error: Json Data Null"); return false; }
-      log("Start ping check....." + ( new Date() ).toString() );
-      var p = ipParse(DataObj);
-    });
-  }
+(function loop(){
+  log("count: %d", count);
+
+  var M = Main(function(err){
+    if(err) error("Main err: %s", err);
+    if( count++ > 999) count = 1;
+  });
+
+  setTimeout(loop, LoopTime);
+})();
+
+function Main(callback){
+
+
+  pingAliveChcek(Gdns, function(err, msg){
+    if (err) callback("Main func pingAliveChcek err: " + err);
+    else {
+
+      JsonGet(Conf.IPsList, function(err, res, body){
+        if(err) callback(err);
+
+        if(isEmpty(body.PingList)) PingList = {};
+        else PingList = extend([], body.PingList);
+
+        if(isEmpty(body.Exclude)) Exclude = {};
+        else Exclude = extend({}, body.Exclude);
+
+        IPsListParse(function(err){});
+      });
+
+
+    }
+  });
+
 }
 
-function ipParse(obj){
-  var DataObj = extend({}, obj);
-  for(var i in DataObj.ec2IPs){
-    for(var j in DataObj.ec2IPs[i].EIPs){
-      var keys = Object.keys(DataObj.ec2IPs[i].EIPs[j]);
-      if (keys.indexOf("Disable")  > -1) continue;
-      if (keys.indexOf("PublicIp") <  0) continue;
-      var Account  = extend({}, DataObj.ec2IPs[i]);
-      var PublicIp = DataObj.ec2IPs[i].EIPs[j].PublicIp;
-      var c = PingCheck(Account, PublicIp, function(err, Account, PublicIp, msg){
-        if(!err) log("%s Profile: %s - %s", msg, Account.Profile, PublicIp);
-        else{
-          log("%s Profile: %s - %s", msg, Account.Profile, PublicIp);
-          var AlertObj = {};
-          AlertObj.Alert = msg;
-          AlertObj.Profile = Account.Profile;
-          AlertObj.PublicIp = PublicIp;
-          AlertObj.CheckHost = os.hostname();
-          AlertSend(AlertObj, function(err, res){ if(err) log(res); });
+function IPsListParse(callback) {
+
+  var Exclude-Profile  = null;
+  var Exclude-PublicIp = null;
+  if( typeof Exclude.Profile  !== 'undefined' ) Exclude-Profile  = Exclude.Profile;
+  if( typeof Exclude.PublicIp !== 'undefined' ) Exclude-PublicIp = Exclude.PublicIp;
+
+  async.each(PingList, function(List, next) {
+    if( Exclude-Profile.indexOf(List.Profile) < 0 ) return next();
+
+    async.each(List.EIPs, function(eip, done) {
+      debug("%s: %s", List.Profile, eip.PublicIp);
+      if( Exclude-PublicIp.indexOf(eip.PublicIp) < 0 ) return done();
+      pingAliveChcek(eip.PublicIp, function(err, msg){
+        if(!err) done();
+        else {
+          error("IPsListParse pingAliveChcek err: %s", err);
+          error("msg: %s", msg);
+          var AlertObj = {
+            DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
+            CheckHost: os.hostname(),
+            Profile: List.Profile,
+            FunctionName: List.FunctionName,
+            PublicIp: eip.PublicIp,
+            PublicDnsName: eip.PublicDnsName
+          };
+          AlertSend(AlertObj, function(err, res){
+            if(err) error("IPsListParse AlertSend err: %s", err);
+            done();
+          });
         }
       });
-    }
-  }
-}
 
-function PingCheck(Account, PublicIp, cb){
-  var msg = '';
-  session.pingHost (PublicIp, function (err, target) {
-    if (err)
-      if (err instanceof ping.RequestTimedOutError)
-        msg = "Ping Error: Not alive.";
-      else
-        msg = "Ping Error: " + err.toString() + ".";
-    else
-      msg = "Ping Alive.";
-    return cb(err, Account, PublicIp, msg);
+    },
+    function(err){
+      next();
+    });
+
+  },
+  function(err){
+    callback();
   });
+
+
 }
 
-function JsonGet(url, cb){
-  var options = {
-    url: url,
-    headers: { 'User-Agent': 'curl' }
+function pingAliveChcek (target, callback){
+
+  var msg  = null;
+
+  var session = ping.createSession (PingOptions);
+
+  session.pingHost (target, function (err, target) {
+      if (err){
+        if (err instanceof ping.RequestTimedOutError){
+          msg = "Not alive. " + err.toString() + ", targert: " + target;
+        }else{
+          msg = err.toString() + ", target: " + target;
+        }
+        error(msg);
+      } else {
+        msg = "Alive";
+      }
+      callback(err, msg)
+  });
+
+}
+
+function JsonGet (url, cb) {
+  var headers, get;
+  headers = {
+    'User-Agent': 'curl'
   };
-  request(options, function (err, res, body) {
-    if (err || res.statusCode != 200) {
-      errlog("Error: " + err);
-      errlog("Status: %d", res.statusCode);
-      return cb(err,body);
-    }
-    return cb(null, body);
+  get = request.get({
+    url: url,
+    headers: headers,
+    json: true
+  }, function(err, res, body) {
+    if(err) cb(err, res, "JsonGet func error.");
+    else if (res.statusCode !== 200) cb('Error Respons statusCode.', res, body);
+    else cb(err, res, body);
   });
 }
+
+//
+// function JsonGet(url, cb){
+//   var options = {
+//     url: url,
+//     headers: { 'User-Agent': 'curl' }
+//   };
+//   request(options, function (err, res, body) {
+//     if (err || res.statusCode != 200) {
+//       error(": %s" + err);
+//       error("Status: %d", res.statusCode);
+//       return cb(err,body);
+//     }
+//     return cb(null, body);
+//   });
+// }
 
 function AlertSend(AlertObj, cb){
   var Params = {
@@ -162,4 +230,8 @@ function AlertSend(AlertObj, cb){
       cb(err,'Error: '+ res.statusCode + ".\n" + body);
     }
   });
+}
+
+function JsonString(obj) {
+  return JSON.stringify(obj, null, "    ");
 }
