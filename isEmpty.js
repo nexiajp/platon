@@ -1,9 +1,9 @@
 'use strict';
 
 function isEmpty(obj) {
-	if ( typeof obj === "undefined" ) return true;
+	if ( typeof obj === 'undefined' ) return true;
 	if ( Array.isArray(obj) ) {
-		if ( typeof obj[0] === "undefined" ) return true;
+		if ( typeof obj[0] === 'undefined' ) return true;
 	}
 
 	if (obj == null) return true;
