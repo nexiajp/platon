@@ -1,35 +1,46 @@
 var log     = console.log;
-var errlog  = console.error;
+var error   = console.error;
 var fs      = require('fs');
 var request = require('request');
+var async   = require('async');
 
-var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Config.json', 'UTF-8' ) );
+var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Conf-Ping.json', 'UTF-8' ) );
 var DataObj = {};
 
-var num = 0;
-if (Conf.Ping.length > 1) num = 1;
-
 var options = {
-  url: Conf.Ping[num].JsonURL,
-  headers: { 'User-Agent': 'curl' }
+  url: Conf.IPsURL,
+  headers: { 'User-Agent': 'curl' },
+  json: true
 };
 
 request(options, function (err, res, body) {
   if (err || res.statusCode != 200) {
-  	errlog("Error: " + err);
-  	errlog("Status: %d", res.statusCode);
+  	error("Error: " + err);
+  	error("Status: %d", res.statusCode);
   }else{
-  	log(body);
-  	DataObj.ec2IPs = JSON.parse(body).ec2IPs;
-  	var obj = {IPs: []};
-  	for(var i in DataObj.ec2IPs){
-  		for(var j in DataObj.ec2IPs[i].EIPs)
-  			obj.IPs.push(DataObj.ec2IPs[i].EIPs[j].PublicIp);
-  	}
-  	log(JSON.stringify(obj, null, "    "));
-  	var ret = IPlistView(obj);
+    // log("IPsList: %s", JsonString(body));
+    if( typeof body.PingList !== 'undefined' ){
+      async.map(body.PingList, function (item, done) {
+        // done(null, item.Profile);
+        async.map(item.EIPs, function(eip, next){
+          next(null, eip.PublicIp);
+        }, function (err, results) {
+          var obj = {};
+          obj.Profile = item.Profile;
+          obj.Eips    = results;
+          done(null, obj);
+        });
+      }, function (err, results) {
+        if (err) error(err);
+        else log(JsonString(results));
+      });
+    }
   }
 });
+
+function JsonString(obj) {
+  return JSON.stringify(obj, null, "    ");
+}
 
 function IPlistView(obj){
 	for(var i in obj.IPs){

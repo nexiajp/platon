@@ -11,9 +11,9 @@ var log   = console.log;
 var extend   = require('util')._extend;
 var fs       = require('fs');
 var request  = require('request');
+var async    = require('async');
 var isEmpty  = require('./isEmpty');
 var isObject = require('./isObject');
-var ping     = require("net-ping");
 var argv     = require('argv');
 var os       = require("os");
 var moment   = require('moment');
@@ -31,6 +31,13 @@ argv.option([
     type : 'boolean',
     description :'Confing Json View.',
     example: "'"+scriptname+" -v'"
+  },
+  {
+    name: 'list',
+    short: '',
+    type : 'boolean',
+    description :'View IPs List.',
+    example: "'"+scriptname+" --list'"
   },
   {
     name: 'profile',
@@ -68,18 +75,9 @@ var Profile  = opt["profile"] ? opt["profile"] : null;
 var LoopTime = opt["time"] ? opt["time"] : Conf.LoopTime;
 var Loop     = opt["loop"] ? opt["loop"] : Conf.Loop;
 
-// ping Default options
-var PingOptions = {
-    networkProtocol: ping.NetworkProtocol.IPv4,
-    packetSize: 16,
-    retries: 10,
-    sessionId: (process.pid % 65535),
-    timeout: 15000,
-    ttl: 128
-};
-
-var IPsList = {};
-var Exclude = {};
+var PingList = [];
+var Exclude  = {};
+var count    = 1;
 
 (function loop(){
   log("count: %d", count);
@@ -96,19 +94,21 @@ function Main(callback){
 
 
   pingAliveChcek(Gdns, function(err, msg){
-    if (err) callback("Main func pingAliveChcek err: " + err);
+    if (err) callback("Main func pingAliveChcek " + Gdns + ", err: " + err);
     else {
 
-      JsonGet(Conf.IPsList, function(err, res, body){
+      JsonGet(Conf.IPsURL, function(err, res, body){
         if(err) callback(err);
 
-        if(isEmpty(body.PingList)) PingList = {};
+        if(isEmpty(body.PingList)) PingList = [];
         else PingList = extend([], body.PingList);
+        // debug("PingList: %s", JsonString(PingList));
 
         if(isEmpty(body.Exclude)) Exclude = {};
         else Exclude = extend({}, body.Exclude);
+        // debug("Exclude: %s", JsonString(Exclude));
 
-        IPsListParse(function(err){});
+        PingListParse(function(err){});
       });
 
 
@@ -117,24 +117,27 @@ function Main(callback){
 
 }
 
-function IPsListParse(callback) {
+function PingListParse(callback) {
 
-  var Exclude-Profile  = null;
-  var Exclude-PublicIp = null;
-  if( typeof Exclude.Profile  !== 'undefined' ) Exclude-Profile  = Exclude.Profile;
-  if( typeof Exclude.PublicIp !== 'undefined' ) Exclude-PublicIp = Exclude.PublicIp;
+  var Exclude_Profile  = null;
+  var Exclude_PublicIp = null;
+  if( typeof Exclude.Profile  !== 'undefined' ) Exclude_Profile  = Exclude.Profile;
+  if( typeof Exclude.PublicIp !== 'undefined' ) Exclude_PublicIp = Exclude.PublicIp;
 
   async.each(PingList, function(List, next) {
-    if( Exclude-Profile.indexOf(List.Profile) < 0 ) return next();
+    if( Exclude_Profile.indexOf(List.Profile) >= 0 ) return next();
 
     async.each(List.EIPs, function(eip, done) {
-      debug("%s: %s", List.Profile, eip.PublicIp);
-      if( Exclude-PublicIp.indexOf(eip.PublicIp) < 0 ) return done();
+      // debug("%s: %s", List.Profile, eip.PublicIp);
+      if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
+      debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
       pingAliveChcek(eip.PublicIp, function(err, msg){
-        if(!err) done();
-        else {
-          error("IPsListParse pingAliveChcek err: %s", err);
-          error("msg: %s", msg);
+        if(!err) {
+          debug("done PublicIp: %s", eip.PublicIp);
+          done();
+        } else {
+          error(msg);
+          // error("PingListParse pingAliveChcek err: %s", err);
           var AlertObj = {
             DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
             CheckHost: os.hostname(),
@@ -144,7 +147,7 @@ function IPsListParse(callback) {
             PublicDnsName: eip.PublicDnsName
           };
           AlertSend(AlertObj, function(err, res){
-            if(err) error("IPsListParse AlertSend err: %s", err);
+            if(err) error("PingListParse AlertSend err: %s", err);
             done();
           });
         }
@@ -165,7 +168,18 @@ function IPsListParse(callback) {
 
 function pingAliveChcek (target, callback){
 
-  var msg  = null;
+  var ping = require("net-ping");
+  var msg  = "Alive";
+
+  // ping Default options
+  var PingOptions = {
+      networkProtocol: ping.NetworkProtocol.IPv4,
+      packetSize: ( 64 + 12 ),
+      retries: 3,
+      sessionId: ( randomIntInc(2049, 6553) ),
+      timeout: 2000,
+      ttl: 128
+  };
 
   var session = ping.createSession (PingOptions);
 
@@ -176,12 +190,16 @@ function pingAliveChcek (target, callback){
         }else{
           msg = err.toString() + ", target: " + target;
         }
-        error(msg);
-      } else {
-        msg = "Alive";
+        // error(msg);
       }
+      session.close();
       callback(err, msg)
   });
+
+
+  function randomIntInc (low, high) {
+      return Math.floor(Math.random() * (high - low + 1) + low);
+  }
 
 }
 
@@ -200,22 +218,6 @@ function JsonGet (url, cb) {
     else cb(err, res, body);
   });
 }
-
-//
-// function JsonGet(url, cb){
-//   var options = {
-//     url: url,
-//     headers: { 'User-Agent': 'curl' }
-//   };
-//   request(options, function (err, res, body) {
-//     if (err || res.statusCode != 200) {
-//       error(": %s" + err);
-//       error("Status: %d", res.statusCode);
-//       return cb(err,body);
-//     }
-//     return cb(null, body);
-//   });
-// }
 
 function AlertSend(AlertObj, cb){
   var Params = {
