@@ -29,15 +29,15 @@ argv.option([
     name: 'view',
     short: 'v',
     type : 'boolean',
-    description :'Confing Json View.',
+    description :'Checking IPs Json View.',
     example: "'"+scriptname+" -v'"
   },
   {
-    name: 'list',
-    short: '',
+    name: 'json',
+    short: 'j',
     type : 'boolean',
-    description :'View IPs List.',
-    example: "'"+scriptname+" --list'"
+    description :'View IPs Json List.',
+    example: "'"+scriptname+" --json' or '"+scriptname+" -j'"
   },
   {
     name: 'profile',
@@ -57,7 +57,7 @@ argv.option([
     name: 'time',
     short: 't',
     type : 'int',
-    description :'check Loop Time Wate Minute.',
+    description :'check Loop Time Waite Minute.',
     example: "'"+scriptname+" --time=10' or '"+scriptname+" -t 10'"
   }
 ]);
@@ -72,19 +72,26 @@ if (Object.keys(opt).length < 1 || opt["help"] ){
 
 if(typeof opt["view"] !== 'undefined') return log("Conf-Ping: %s", JsonString(Conf));
 var Profile  = opt["profile"] ? opt["profile"] : null;
-var LoopTime = opt["time"] ? opt["time"] : Conf.LoopTime;
-var Loop     = opt["loop"] ? opt["loop"] : Conf.Loop;
+var LoopTime = opt["time"] ? ( opt["time"] * 60 * 1000 ) : Conf.LoopTime;
+var Loop     = isNaN(opt["loop"]) ? 0 : opt["loop"];
+
+// log("Profile: %s", Profile);
+// log("LoopTime: %d", LoopTime);
+// log("Loop: %s", Loop);
+// process.exit(0);
 
 var PingList = [];
 var Exclude  = {};
-var count    = 1;
+var count    = 0;
 
 (function loop(){
-  log("count: %d", count);
+  debug("count: %d, LoopTime: %d", ++count, LoopTime);
 
   var M = Main(function(err){
     if(err) error("Main err: %s", err);
-    if( count++ > 999) count = 1;
+    debug("Main Func end. count: %d", count);
+    if( Loop > 0 && Loop <= count ) process.exit(0);
+    if( count > 999) count = 1;
   });
 
   setTimeout(loop, LoopTime);
@@ -98,23 +105,37 @@ function Main(callback){
     else {
 
       JsonGet(Conf.IPsURL, function(err, res, body){
-        if(err) callback(err);
+
+        if(err) return callback(err);
 
         if(isEmpty(body.PingList)) PingList = [];
         else PingList = extend([], body.PingList);
-        // debug("PingList: %s", JsonString(PingList));
 
         if(isEmpty(body.Exclude)) Exclude = {};
         else Exclude = extend({}, body.Exclude);
-        // debug("Exclude: %s", JsonString(Exclude));
 
-        PingListParse(function(err){});
+        if ( typeof opt["json"] !== 'undefined' ) {
+          viewCheckingIPsJson(function(err){
+            process.exit(0);
+          });
+        } else {
+          PingListParse(function(err){
+            callback(err);
+          });
+        }
+
       });
 
 
     }
   });
 
+}
+
+function viewCheckingIPsJson(callback){
+  log("PingList: %s", JsonString(PingList));
+  log("Exclude: %s", JsonString(Exclude));
+  callback(null);
 }
 
 function PingListParse(callback) {
@@ -126,6 +147,10 @@ function PingListParse(callback) {
 
   async.each(PingList, function(List, next) {
     if( Exclude_Profile.indexOf(List.Profile) >= 0 ) return next();
+
+    if (Profile) {
+      if( Profile !== List.Profile) return next();
+    }
 
     async.each(List.EIPs, function(eip, done) {
       // debug("%s: %s", List.Profile, eip.PublicIp);

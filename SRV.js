@@ -16,6 +16,8 @@ var extend   = require('util')._extend
 var async    = require('async');
 var AWS      = require('aws-sdk');
 
+var modDoc   = require("./module-doc");
+
 var IPsList     = {};
 var ServiceList = new Array();
 var ProfileList = new Array();
@@ -139,8 +141,6 @@ function getEIPs(callback){
   });
 
 }
-
-
 
 (function loop(){
   log('SRV Loop ( %d ).....', Conf.LoopTime);
@@ -301,10 +301,28 @@ app.get('/ProfileList', function (req, res) {
   res.send(JsonString(ProfileList));
 });
 
-app.post('/Alert', function(req, res) {
-  debug("/Alert Request body: %s", JsonString(req.body));
+app.post('/IpCheckAlert', function(req, res) {
+  debug("/IpCheckAlert Request body: %s", JsonString(req.body));
   if(DataCheck(req.body) === false) res.send( { Status : "Error Data not Object." } );
-  else res.send( { Status : "OK" } );
+  else {
+    res.send( { Status : "OK" } );
+    var doc = req.body;
+    doc.AlertCount = 1;
+    modDoc.PutItem(req.body, function(err){
+      if(err) error("modDoc putItem func err: %s", err);
+    });
+  }
+});
+
+app.post('/ServiceCheckAlert', function(req, res) {
+  debug("/ServiceCheckAlert Request body: %s", JsonString(req.body));
+  if(DataCheck(req.body) === false) res.send( { Status : "Error Data not Object." } );
+  else {
+    res.send( { Status : "OK" } );
+    // modDoc.PutItem(req.body, function(err){
+    //   if(err) error("modDoc putItem func err: %s", err);
+    // });
+  }
 });
 
 app.listen(Conf.ListenPort);
