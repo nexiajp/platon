@@ -19,7 +19,7 @@ var AWS      = require('aws-sdk');
 var modDoc   = require("./module-doc");
 
 var IPsList     = {};
-var ServiceList = new Array();
+var ServiceList = {};
 var ProfileList = new Array();
 
 var CredentialsFile = process.env.HOME + '/.aws/credentials';
@@ -258,7 +258,12 @@ function getServiceList (callback) {
         }
       ], function(err, results) {
         if(err) error("getServiceList async.each err: %s", err);
-        else ServiceList = extend([], tmpList);
+        else {
+          var obj = {};
+          obj.ServiceList = tmpList;
+          if( typeof body.Exclude !== 'undefined' ) obj.Exclude = body.Exclude;
+          ServiceList = extend({}, obj);
+        }
         callback(null);
       });
 
@@ -308,7 +313,7 @@ app.post('/IpCheckAlert', function(req, res) {
     res.send( { Status : "OK" } );
     var doc = req.body;
     doc.AlertCount = 1;
-    modDoc.PutItem(req.body, function(err){
+    modDoc.PutItem(req.body, 'PingAlert', function(err){
       if(err) error("modDoc putItem func err: %s", err);
     });
   }
@@ -319,9 +324,9 @@ app.post('/ServiceCheckAlert', function(req, res) {
   if(DataCheck(req.body) === false) res.send( { Status : "Error Data not Object." } );
   else {
     res.send( { Status : "OK" } );
-    // modDoc.PutItem(req.body, function(err){
-    //   if(err) error("modDoc putItem func err: %s", err);
-    // });
+    modDoc.PutItem(req.body, 'ServiceAlert', function(err){
+      if(err) error("modDoc putItem func err: %s", err);
+    });
   }
 });
 

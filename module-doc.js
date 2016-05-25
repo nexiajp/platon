@@ -8,25 +8,25 @@ var log      = console.log;
 var isEmpty  = require('./isEmpty');
 var moment   = require('moment');
 
-var AWS = require('aws-sdk');
-var DOC = require("dynamodb-doc");
+var AWS  = require('aws-sdk');
+var DOC  = require("dynamodb-doc");
+var Conf = require('./.Conf-Srv.json').DynamoDB;
 var credentials = new AWS.SharedIniFileCredentials(
   {
     filename: process.env.HOME + '/.aws/credentials',
-    profile: 'nexia-dynamodb'
+    profile: Conf.profile
   }
 );
 AWS.config.credentials = credentials;
-AWS.config.region = "us-west-2"; //Oregon
+AWS.config.region = Conf.region;
 
 var dynamodb  = new AWS.DynamoDB();
 var docClient = new DOC.DynamoDB(dynamodb);
 
 var modDynamoDB  = require("./module-dynamodb");
 
-var Name      = 'IPcheck';
-var IPcheck   = modDynamoDB.setSchemaIPcheck();
-var TableName = modDynamoDB.getTableName( Name );
+var PingAlert    = modDynamoDB.setSchemaPingAlert();
+var ServiceAlert = modDynamoDB.setSchemaServiceAlert();
 
 function queryTable (query) {
 
@@ -38,7 +38,7 @@ function queryTable (query) {
     var Query = query;
   }
 
-  IPcheck
+  PingAlert
     .query(Query)
     .usingIndex(Index)
     .ascending('Time')
@@ -51,7 +51,7 @@ function queryTable (query) {
     var json  = JSON.stringify(res.Items);
     var Items = JSON.parse(json);
 
-    log("%s Items: %s", Name, JsonString(Items));
+    log("PingAlert Items: %s", JsonString(Items));
   });
 
 }
@@ -59,7 +59,7 @@ exports.QueryTable = queryTable;
 
 function getItem (email) {
 
-  MapDoc
+  PingAlert
     .scan()
     .where('Email').equals(email)
     .loadAll()
@@ -69,14 +69,14 @@ function getItem (email) {
     var json  = JSON.stringify(res.Items);
     var Items = JSON.parse(json);
 
-    log("%s Items: %s", Name, JsonString(Items));
+    log("PingAlert Items: %s", JsonString(Items));
   });
 
 }
 exports.GetItem = getItem;
 
-function putItem(Doc, callback){
-  debug("DynamoDB.Document: putItem Doc: %s", JsonString(Doc));
+function putItem(Doc, TableName, callback){
+  debug("DynamoDB.Document Table: %s, putItem Doc: %s", TableName, JsonString(Doc));
 
   try {
     var json = JSON.stringify(Doc);
@@ -89,7 +89,7 @@ function putItem(Doc, callback){
   doc.Time       = (new Date()).getTime();
 
   var params = {
-      TableName : TableName,
+      TableName : modDynamoDB.getTableName(TableName),
       Item      : doc
   };
 

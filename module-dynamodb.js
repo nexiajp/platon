@@ -12,18 +12,19 @@ var vogels = require('vogels'),
 var moment = require('moment');
 
 /// AWS Setting
+var Conf = require('./.Conf-Srv.json').DynamoDB;
 var credentials = new AWS.SharedIniFileCredentials(
   {
     filename: process.env.HOME + '/.aws/credentials',
-    profile: 'nexia-dynamodb'
+    profile: Conf.profile
   }
 );
 vogels.AWS.config.credentials = credentials;
-vogels.AWS.config.update({ region: "us-west-2" });
+vogels.AWS.config.update({ region: Conf.region });
 
-exports.setSchemaIPcheck = function (){
-  var name = 'IPcheck';
-  var IPcheck = vogels.define( name, {
+exports.setSchemaPingAlert = function (){
+  var name = 'PingAlert';
+  var PingAlert = vogels.define( name, {
     hashKey  : 'FunctionName',
     rangeKey : 'Time',
     schema : {
@@ -51,7 +52,40 @@ exports.setSchemaIPcheck = function (){
       }
     ]
   });
-  return IPcheck;
+  return PingAlert;
+}
+
+exports.setSchemaServiceAlert = function (){
+  var name = 'ServiceAlert';
+  var ServiceAlert = vogels.define( name, {
+    hashKey  : 'FunctionName',
+    rangeKey : 'Time',
+    schema : {
+      FunctionName  : Joi.string(),
+      Time          : Joi.number().default((new Date()).getTime()),
+      DateTime      : Joi.string(),
+      Profile       : Joi.string(),
+      System        : Joi.string(),
+      Target        : Joi.string(),
+      Status        : Joi.string(),
+    },
+    tableName : function () {
+      var d = new Date();
+      var year  = d.getFullYear();
+      var month = ('0' + (d.getMonth() + 1)).slice(-2);
+
+      return [ name, year + month ].join('_');
+    },
+    indexes : [
+      {
+        hashKey  : 'Profile',
+        rangeKey : 'DateTime',
+        name     : 'ProfileIndex',
+        type     : 'global'
+      }
+    ]
+  });
+  return ServiceAlert;
 }
 
 exports.getTableName = function ( Name ){

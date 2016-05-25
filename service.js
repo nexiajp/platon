@@ -1,9 +1,9 @@
 'use strict';
 
-var Conf  = require('./.Conf-Ping.json');
+var Conf  = require('./.Conf-Service.json');
 var Gdns  = '8.8.8.8';
 
-var debug = require('debug')('PING');
+var debug = require('debug')('Service');
 debug.log = console.log.bind(console);
 var error = console.error;
 var log   = console.log;
@@ -20,7 +20,7 @@ var moment   = require('moment');
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
-// var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Conf-Ping.json', 'UTF-8' ) );
+// var Conf = JSON.parse( fs.readFileSync( __dirname + '/.Conf-Service.json', 'UTF-8' ) );
 if(!isObject(Conf)) return;
 
 argv.option([
@@ -69,17 +69,12 @@ if (Object.keys(opt).length < 1 || opt["help"] ){
   process.exit(0);
 }
 
-if(typeof opt["view"] !== 'undefined') return log("Conf-Ping: %s", JsonString(Conf));
+if(typeof opt["view"] !== 'undefined') return log("Conf-Service: %s", JsonString(Conf));
 var Profile  = opt["profile"] ? opt["profile"] : null;
 var LoopTime = opt["time"] ? ( opt["time"] * 60 * 1000 ) : Conf.LoopTime;
 var Loop     = isNaN(opt["loop"]) ? Conf.LoopCount : opt["loop"];
 
-// log("Profile: %s", Profile);
-// log("LoopTime: %d", LoopTime);
-// log("Loop: %s", Loop);
-// process.exit(0);
-
-var PingList = [];
+var ServiceList = [];
 var Exclude  = {};
 var count    = 0;
 
@@ -98,27 +93,26 @@ var count    = 0;
 
 function Main(callback){
 
-
   pingAliveChcek(Gdns, function(err, msg){
     if (err) callback("Main func pingAliveChcek " + Gdns + ", err: " + err);
     else {
 
-      JsonGet(Conf.IPsURL, function(err, res, body){
+      JsonGet(Conf.ListURL, function(err, res, body){
 
         if(err) return callback(err);
 
-        if(isEmpty(body.PingList)) PingList = [];
-        else PingList = extend([], body.PingList);
+        if(isEmpty(body.ServiceList)) ServiceList = [];
+        else ServiceList = extend([], body.ServiceList);
 
         if(isEmpty(body.Exclude)) Exclude = {};
         else Exclude = extend({}, body.Exclude);
 
         if ( typeof opt["json"] !== 'undefined' ) {
-          viewCheckingIPsJson(function(err){
+          viewCheckingJson(function(err){
             process.exit(0);
           });
         } else {
-          PingListParse(function(err){
+          ServiceListParse(function(err){
             callback(err);
           });
         }
@@ -131,63 +125,52 @@ function Main(callback){
 
 }
 
-function viewCheckingIPsJson(callback){
+function viewCheckingJson(callback){
   if ( Profile ) {
-    async.map(PingList, function(List, done) {
+    async.map(ServiceList, function(List, done) {
       if(List.Profile === Profile) log("PingList: %s", JsonString(List));
       done();
     }, function(err, results) {
       callback(null);
     });
   } else {
-    log("PingList: %s", JsonString(PingList));
+    log("PingList: %s", JsonString(ServiceList));
     log("Exclude: %s", JsonString(Exclude));
     callback(null);
   }
 }
 
-function PingListParse(callback) {
+function ServiceListParse(callback) {
 
   var Exclude_Profile  = null;
-  var Exclude_PublicIp = null;
-  if( typeof Exclude.Profile  !== 'undefined' ) Exclude_Profile  = Exclude.Profile;
-  if( typeof Exclude.PublicIp !== 'undefined' ) Exclude_PublicIp = Exclude.PublicIp;
+  if( typeof Exclude.Profile  !== 'undefined' ) Exclude_Profile = Exclude.Profile;
 
-  async.each(PingList, function(List, next) {
+  async.each(ServiceList, function(List, next) {
     if( Exclude_Profile.indexOf(List.Profile) >= 0 ) return next();
 
     if (Profile) {
       if( Profile !== List.Profile) return next();
     }
 
-    async.each(List.EIPs, function(eip, done) {
-      // debug("%s: %s", List.Profile, eip.PublicIp);
-      if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
-      debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
-      pingAliveChcek(eip.PublicIp, function(err, msg){
-        if(!err) {
-          debug("done PublicIp: %s", eip.PublicIp);
-          done();
-        } else {
-          error(msg);
-          // error("PingListParse pingAliveChcek err: %s", err);
-          var AlertObj = {
-            DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
-            CheckHost: os.hostname(),
-            Profile: List.Profile,
-            FunctionName: List.FunctionName,
-            PublicIp: eip.PublicIp,
-            PublicDnsName: eip.PublicDnsName
-          };
-          AlertSend(AlertObj, function(err, res){
-            if(err) error("PingListParse AlertSend err: %s", err);
+
+    async.series([
+      function(done){
+        if( typeof List.WEB !== 'undefined' ) {
+          webCheck(List, function(err) {
             done();
           });
         }
-      });
-
-    },
-    function(err){
+        else done();
+      },
+      function(done){
+        if( typeof List.Other !== 'undefined' ) {
+          portCheck(List, function(err) {
+            done();
+          });
+        }
+        else done();
+      }
+    ], function(err, results) {
       next();
     });
 
@@ -196,6 +179,94 @@ function PingListParse(callback) {
     callback();
   });
 
+
+}
+
+function portCheck(List, callback){
+
+  var Other = List.Other;
+
+  async.each(Other, function(item, done) {
+    if( item.Disable === true ) return done();
+
+    async.each(item.Port, function(p, next) {
+
+      debug("portListenChcek Profile: %s, Port: %d", List.Profile, p);
+
+      portListenChcek(p, function(err, res, port){
+        if(!err) {
+          debug("done Port: %d", port);
+          next();
+        } else {
+          error("err Port: %d", port);
+          error(err);
+          var AlertObj = {
+            DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
+            CheckHost: os.hostname(),
+            Profile: List.Profile,
+            FunctionName: List.FunctionName,
+            System: item.System,
+            Target: port,
+            Status: res
+          };
+          AlertSend(AlertObj, function(err, res){
+            if(err) error("webCheck AlertSend err: %s", err);
+            next();
+          });
+        }
+      });
+
+    },
+    function(err) {
+      done();
+    });
+
+  },
+  function (err) {
+    callback();
+  });
+
+
+}
+
+function webCheck(List, callback){
+  var WEB = List.WEB;
+  var Exclude_URL = null;
+  if( typeof Exclude.URL !== 'undefined' ) Exclude_URL = Exclude.URL;
+
+  async.each(WEB, function(item, done) {
+    if( item.Disable === true ) return done();
+    if( Exclude_URL.indexOf(item.URL) >= 0 ) return done();
+
+    debug("httpAliveChcek Profile: %s, URL: %s", List.Profile, item.URL);
+
+    httpAliveChcek(item.URL, function(err, res, url){
+      if(!err) {
+        debug("done URL: %s", url);
+        done();
+      } else {
+        error("err: %s", url);
+        error(err);
+        var AlertObj = {
+          DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
+          CheckHost: os.hostname(),
+          Profile: List.Profile,
+          FunctionName: List.FunctionName,
+          System: item.System,
+          Target: url,
+          Status: "statusCode: " + res.statusCode
+        };
+        AlertSend(AlertObj, function(err, res){
+          if(err) error("webCheck AlertSend err: %s", err);
+          done();
+        });
+      }
+    });
+
+  },
+  function(err){
+    callback();
+  });
 
 }
 
@@ -234,6 +305,30 @@ function pingAliveChcek (target, callback){
       return Math.floor(Math.random() * (high - low + 1) + low);
   }
 
+}
+
+function portListenChcek (port, cb) {
+  var res = 'Port Open';
+  cb(null, res, port);
+}
+
+function httpAliveChcek (url, cb) {
+  var headers, get;
+  headers = {
+    'User-Agent': 'curl'
+  };
+  get = request.get({
+    url: url,
+    headers: headers
+  }, function(err, res, body) {
+    if ( typeof res === 'undefined' || typeof res.statusCode === 'undefined' ) {
+      var res = {};
+      res.statusCode = 'Response nothing.';
+    }
+
+    if (res.statusCode !== 200) cb('statusCode: ' + res.statusCode + ' ' + err, res, url);
+    else cb(err, res, url);
+  });
 }
 
 function JsonGet (url, cb) {
