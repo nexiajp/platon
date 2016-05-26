@@ -56,8 +56,8 @@ argv.option([
     name: 'time',
     short: 't',
     type : 'int',
-    description :'check Loop Time Waite Minute.',
-    example: "'"+scriptname+" --time=10' or '"+scriptname+" -t 10'"
+    description :'check Loop Time Waite second. ( 120 = 2min )',
+    example: "'"+scriptname+" --time=60' or '"+scriptname+" -t 60'"
   }
 ]);
 
@@ -71,7 +71,7 @@ if (Object.keys(opt).length < 1 || opt["help"] ){
 
 if(typeof opt["view"] !== 'undefined') return log("Conf-Ping: %s", JsonString(Conf));
 var Profile  = opt["profile"] ? opt["profile"] : null;
-var LoopTime = opt["time"] ? ( opt["time"] * 60 * 1000 ) : Conf.LoopTime;
+var LoopTime = opt["time"] ? ( opt["time"] * 1000 ) : Conf.LoopTime;
 var Loop     = isNaN(opt["loop"]) ? Conf.LoopCount : opt["loop"];
 
 // log("Profile: %s", Profile);
@@ -99,7 +99,7 @@ var count    = 0;
 function Main(callback){
 
 
-  pingAliveChcek(Gdns, function(err, msg){
+  var P = pingAliveChcek(Gdns, function(err, msg){
     if (err) callback("Main func pingAliveChcek " + Gdns + ", err: " + err);
     else {
 
@@ -164,7 +164,7 @@ function PingListParse(callback) {
       // debug("%s: %s", List.Profile, eip.PublicIp);
       if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
       debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
-      pingAliveChcek(eip.PublicIp, function(err, msg){
+      var P = pingAliveChcek(eip.PublicIp, function(err, msg){
         if(!err) {
           debug("done PublicIp: %s", eip.PublicIp);
           done();
@@ -179,7 +179,7 @@ function PingListParse(callback) {
             PublicIp: eip.PublicIp,
             PublicDnsName: eip.PublicDnsName
           };
-          AlertSend(AlertObj, function(err, res){
+          var A = AlertSend(AlertObj, function(err, res){
             if(err) error("PingListParse AlertSend err: %s", err);
             done();
           });
@@ -216,7 +216,7 @@ function pingAliveChcek (target, callback){
 
   var session = ping.createSession (PingOptions);
 
-  session.pingHost (target, function (err, target) {
+  var SP = session.pingHost (target, function (err, target) {
       if (err){
         if (err instanceof ping.RequestTimedOutError){
           msg = "Not alive. " + err.toString() + ", targert: " + target;
@@ -258,7 +258,7 @@ function AlertSend(AlertObj, cb){
     form: AlertObj,
     json: true
   };
-  request.post(Params, function(err, res, body){
+  var R = request.post(Params, function(err, res, body){
     if (!err && res.statusCode == 200) {
       cb(null, body);
     } else {

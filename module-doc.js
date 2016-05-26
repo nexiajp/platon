@@ -28,52 +28,105 @@ var modDynamoDB  = require("./module-dynamodb");
 var PingAlert    = modDynamoDB.setSchemaPingAlert();
 var ServiceAlert = modDynamoDB.setSchemaServiceAlert();
 
-function queryTable (query) {
+var opt = new Array();
+for (var i=0, len = process.argv.length; i < len; i++) {
+  opt[i] = process.argv[i];
+}
 
-  if(query === 'true'){
-    var Index = null;
-    var Query = 'platonIPcheck';
-  } else {
-    var Index = 'ProfileIndex';
-    var Query = query;
+if(opt[1].indexOf('module-doc.js') >= 0 && !isEmpty(opt[2]) ){
+
+  var argv     = require('argv');
+  argv.option([
+    {
+      name: 'query',
+      short: 'q',
+      type : 'int',
+      description :'view dynamoDB query. -q < hours ago num >'
+    },
+    {
+      name: 'table',
+      short: 't',
+      type : 'string',
+      description :'dynamoDB TableName. [ ServiceAlert | PingAlert(defualt) ]'
+    }
+  ]);
+
+  var args = argv.run();
+  var opt  = args.options;
+  var TableName = 'PingAlert'; // defualt
+
+  if ( opt["help"] ){
+    argv.help();
+    process.exit(0);
   }
 
-  PingAlert
-    .query(Query)
-    .usingIndex(Index)
-    .ascending('Time')
-    // .descending('Time')
-    .loadAll()
-    // .limit(opt['limit'])
-    .exec(function(err, res){
-    if(err) return error("Error: %s", err);
+  if ( typeof opt["query"] !== 'undefiend' ) {
+    if( typeof opt["table"] !== 'undefined' ) TableName = opt["table"];
+    var hour = isNaN(opt["query"]) ? 1 : opt["query"];
+    queryTable (hour, TableName);
+  }
+
+  return;
+
+}
+
+
+function queryTable (hour, TableName) {
+
+  var serialTime = getSerialTime(hour);
+
+  if ( TableName === "ServiceAlert" ) {
+
+    ServiceAlert
+      .query('ServiceCheck')
+      .where('Time').gte(serialTime)
+      .descending('Time')
+      .limit(100)
+      .exec(responseView);
+
+  } else {
+
+    PingAlert
+      .query('platonIPcheck')
+      .where('Time').gte(serialTime)
+      .descending('Time')
+      .limit(100)
+      .exec(responseView);
+  }
+
+
+  function responseView(err, res){
+
+    if(err) return error("%s, Res: %s", err, res);
 
     var json  = JSON.stringify(res.Items);
     var Items = JSON.parse(json);
 
-    log("PingAlert Items: %s", JsonString(Items));
-  });
+    log(JsonString(Items));
+
+    // ObjectArraySort(Items, "DateTime", 'desc', function(err, data){
+    //   if(err) return error(err);
+    //
+    //   if(opt["verbose"]) JsonLog({ Items: data });
+    //   else SortView(data, ["DateTime", "Status", "System", "Note"] );
+    // });
+
+  }
+
+  function getSerialTime (optValue) {
+
+    var date = new Date();
+    date.setHours(date.getHours() - parseInt(optValue));
+    debug("date %s", date.toString());
+    var serialTime = date.getTime();
+    debug("date serialTime: %d", serialTime);
+
+    return serialTime;
+
+  }
 
 }
 exports.QueryTable = queryTable;
-
-function getItem (email) {
-
-  PingAlert
-    .scan()
-    .where('Email').equals(email)
-    .loadAll()
-    .exec(function(err, res){
-    if(err) return error("Error: %s", err);
-
-    var json  = JSON.stringify(res.Items);
-    var Items = JSON.parse(json);
-
-    log("PingAlert Items: %s", JsonString(Items));
-  });
-
-}
-exports.GetItem = getItem;
 
 function putItem(Doc, TableName, callback){
   debug("DynamoDB.Document Table: %s, putItem Doc: %s", TableName, JsonString(Doc));

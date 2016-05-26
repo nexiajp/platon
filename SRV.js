@@ -17,12 +17,18 @@ var async    = require('async');
 var AWS      = require('aws-sdk');
 
 var modDoc   = require("./module-doc");
+var modSlack = require("./module-slack");
+var AlertChannel = Conf.AlertChannel;
+var AlertCycle   = Conf.AlertCycle;
 
 var IPsList     = {};
 var ServiceList = {};
 var ProfileList = new Array();
 
 var CredentialsFile = process.env.HOME + '/.aws/credentials';
+
+var cache      = require('memory-cache');
+var AlertTTL   = Conf.AlertTTL; // ms ; 1000*60*10 = 10min
 
 
 function getAWSProfiles(callback){
@@ -189,7 +195,7 @@ function getEIPs(callback){
 
 function getPingList (callback) {
   debug("Conf.PingList: %s", Conf.PingList);
-  JsonGet(Conf.PingList, function(err, res, body){
+  var JG = JsonGet(Conf.PingList, function(err, res, body){
     if(err) callback(err);
     else if(isEmpty(body.PingList)) callback("PingList is Empty.");
     else {
@@ -197,7 +203,7 @@ function getPingList (callback) {
       async.each(body.PingList, function(List, next){
         if( typeof List.Disable !== 'undefined' && List.Disable === true ) return next();
         if( typeof List.JsonURL !== 'undefined' ) {
-          JsonGet(List.JsonURL, function(err, res, body){
+          var J = JsonGet(List.JsonURL, function(err, res, body){
             if(err) error("getPingList JsonGet url: %s err: %s", List.JsonURL, err);
             else if( body.IPs !== 'undefined' ){
               Array.prototype.push.apply(tmpList, body.IPs);
@@ -311,11 +317,26 @@ app.post('/IpCheckAlert', function(req, res) {
   if(DataCheck(req.body) === false) res.send( { Status : "Error Data not Object." } );
   else {
     res.send( { Status : "OK" } );
+
     var doc = req.body;
-    doc.AlertCount = 1;
-    modDoc.PutItem(req.body, 'PingAlert', function(err){
+    var hashkey = doc.PublicIp;
+    var AlertCount = cache.get(hashkey);
+
+    if ( AlertCount ) doc.AlertCount = AlertCount + 1;
+    else doc.AlertCount = 1;
+
+    cache.put(hashkey, doc.AlertCount, AlertTTL);
+
+    var M = modDoc.PutItem(doc, 'PingAlert', function(err){
       if(err) error("modDoc putItem func err: %s", err);
     });
+
+    if ( doc.AlertCount % AlertCycle === 0 ) {
+      modSlack.PostSend( JsonString(doc), AlertChannel, 'PingAlert', function(err, res) {
+        if(err) error("IpCheckAlert modSlack.PostSend err: %s", err);
+      });
+    }
+
   }
 });
 
@@ -324,9 +345,26 @@ app.post('/ServiceCheckAlert', function(req, res) {
   if(DataCheck(req.body) === false) res.send( { Status : "Error Data not Object." } );
   else {
     res.send( { Status : "OK" } );
-    modDoc.PutItem(req.body, 'ServiceAlert', function(err){
+
+    var doc = req.body;
+    var hashkey = doc.Target;
+    var AlertCount = cache.get(hashkey);
+
+    if ( AlertCount ) doc.AlertCount = AlertCount + 1;
+    else doc.AlertCount = 1;
+
+    cache.put(hashkey, doc.AlertCount, AlertTTL);
+
+    var M = modDoc.PutItem(doc, 'ServiceAlert', function(err){
       if(err) error("modDoc putItem func err: %s", err);
     });
+
+    if ( doc.AlertCount % AlertCycle === 0 ) {
+      modSlack.PostSend( JsonString(doc), AlertChannel, 'ServiceAlert', function(err, res) {
+        if(err) error("ServiceCheckAlert modSlack.PostSend err: %s", err);
+      });
+    }
+
   }
 });
 

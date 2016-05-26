@@ -56,8 +56,8 @@ argv.option([
     name: 'time',
     short: 't',
     type : 'int',
-    description :'check Loop Time Waite Minute.',
-    example: "'"+scriptname+" --time=10' or '"+scriptname+" -t 10'"
+    description :'check Loop Time Waite second. ( 120 = 2min )',
+    example: "'"+scriptname+" --time=60' or '"+scriptname+" -t 60'"
   }
 ]);
 
@@ -71,7 +71,7 @@ if (Object.keys(opt).length < 1 || opt["help"] ){
 
 if(typeof opt["view"] !== 'undefined') return log("Conf-Service: %s", JsonString(Conf));
 var Profile  = opt["profile"] ? opt["profile"] : null;
-var LoopTime = opt["time"] ? ( opt["time"] * 60 * 1000 ) : Conf.LoopTime;
+var LoopTime = opt["time"] ? ( opt["time"] * 1000 ) : Conf.LoopTime;
 var Loop     = isNaN(opt["loop"]) ? Conf.LoopCount : opt["loop"];
 
 var ServiceList = [];
@@ -97,7 +97,7 @@ function Main(callback){
     if (err) callback("Main func pingAliveChcek " + Gdns + ", err: " + err);
     else {
 
-      JsonGet(Conf.ListURL, function(err, res, body){
+      var J = JsonGet(Conf.ListURL, function(err, res, body){
 
         if(err) return callback(err);
 
@@ -108,11 +108,11 @@ function Main(callback){
         else Exclude = extend({}, body.Exclude);
 
         if ( typeof opt["json"] !== 'undefined' ) {
-          viewCheckingJson(function(err){
+          var V = viewCheckingJson(function(err){
             process.exit(0);
           });
         } else {
-          ServiceListParse(function(err){
+          var S = ServiceListParse(function(err){
             callback(err);
           });
         }
@@ -156,7 +156,7 @@ function ServiceListParse(callback) {
     async.series([
       function(done){
         if( typeof List.WEB !== 'undefined' ) {
-          webCheck(List, function(err) {
+          var W = webCheck(List, function(err) {
             done();
           });
         }
@@ -164,7 +164,7 @@ function ServiceListParse(callback) {
       },
       function(done){
         if( typeof List.Other !== 'undefined' ) {
-          portCheck(List, function(err) {
+          var P = portCheck(List, function(err) {
             done();
           });
         }
@@ -193,7 +193,7 @@ function portCheck(List, callback){
 
       debug("portListenChcek Profile: %s, Port: %d", List.Profile, p);
 
-      portListenChcek(p, function(err, res, port){
+      var P = portListenChcek(p, function(err, res, port){
         if(!err) {
           debug("done Port: %d", port);
           next();
@@ -205,11 +205,11 @@ function portCheck(List, callback){
             CheckHost: os.hostname(),
             Profile: List.Profile,
             FunctionName: List.FunctionName,
-            System: item.System,
-            Target: port,
+            System: item.System + ' ' + item.Host,
+            Target: item.Host + ':' + port,
             Status: res
           };
-          AlertSend(AlertObj, function(err, res){
+          var A = AlertSend(AlertObj, function(err, res){
             if(err) error("webCheck AlertSend err: %s", err);
             next();
           });
@@ -240,7 +240,7 @@ function webCheck(List, callback){
 
     debug("httpAliveChcek Profile: %s, URL: %s", List.Profile, item.URL);
 
-    httpAliveChcek(item.URL, function(err, res, url){
+    var H = httpAliveChcek(item.URL, function(err, res, url){
       if(!err) {
         debug("done URL: %s", url);
         done();
@@ -256,7 +256,7 @@ function webCheck(List, callback){
           Target: url,
           Status: "statusCode: " + res.statusCode
         };
-        AlertSend(AlertObj, function(err, res){
+        var A = AlertSend(AlertObj, function(err, res){
           if(err) error("webCheck AlertSend err: %s", err);
           done();
         });
@@ -287,7 +287,7 @@ function pingAliveChcek (target, callback){
 
   var session = ping.createSession (PingOptions);
 
-  session.pingHost (target, function (err, target) {
+  var S = session.pingHost (target, function (err, target) {
       if (err){
         if (err instanceof ping.RequestTimedOutError){
           msg = "Not alive. " + err.toString() + ", targert: " + target;
@@ -325,8 +325,8 @@ function httpAliveChcek (url, cb) {
       var res = {};
       res.statusCode = 'Response nothing.';
     }
-
-    if (res.statusCode !== 200) cb('statusCode: ' + res.statusCode + ' ' + err, res, url);
+    if (err) cb(err, res, url);
+    else if (res.statusCode !== 200) cb('statusCode: ' + res.statusCode, res, url);
     else cb(err, res, url);
   });
 }
@@ -353,7 +353,7 @@ function AlertSend(AlertObj, cb){
     form: AlertObj,
     json: true
   };
-  request.post(Params, function(err, res, body){
+  var R = request.post(Params, function(err, res, body){
     if (!err && res.statusCode == 200) {
       cb(null, body);
     } else {
