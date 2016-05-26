@@ -1,6 +1,6 @@
 {
   "name": "platon",
-  "version": "0.0.2",
+  "version": "0.1.2",
   "private": true,
   "description": "PLATON is an application that detects system failure or alert.",
   "main": "app.js",

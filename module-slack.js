@@ -12,7 +12,7 @@ var Token = require('./.Conf-Srv.json').SlackToken;
 var WebhookUri  = "https://hooks.slack.com/services" + Token;
 
 var DefUsername = "Platon-Check";
-var DefChannel  = "#tmp";
+var DefChannel  = "#alert";
 var DefMessage  = "this message is test POST to [#tmp] channel";
 
 // postSend( DefMessage, null, null, function(err, res) {
