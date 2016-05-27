@@ -3,13 +3,14 @@
 var Conf  = require('./.Conf-Service.json');
 var Gdns  = '8.8.8.8';
 
-var debug = require('debug')('Service');
+var debug = require('debug')('on');
 debug.log = console.log.bind(console);
 var error = console.error;
 var log   = console.log;
 
 var extend   = require('util')._extend;
 var fs       = require('fs');
+var dns      = require('dns');
 var request  = require('request');
 var async    = require('async');
 var isEmpty  = require('./isEmpty');
@@ -17,6 +18,7 @@ var isObject = require('./isObject');
 var argv     = require('argv');
 var os       = require("os");
 var moment   = require('moment');
+var evilscan = require('evilscan');
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
@@ -79,7 +81,8 @@ var Exclude  = {};
 var count    = 0;
 
 (function loop(){
-  debug("count: %d, LoopTime: %d", ++count, LoopTime);
+  count++;
+  // debug("count: %d, LoopTime: %d", count, LoopTime);
 
   var M = Main(function(err){
     if(err) error("Main err: %s", err);
@@ -189,17 +192,18 @@ function portCheck(List, callback){
   async.each(Other, function(item, done) {
     if( item.Disable === true ) return done();
 
+    var Host = item.Host;
+
     async.each(item.Port, function(p, next) {
 
       debug("portListenChcek Profile: %s, Port: %d", List.Profile, p);
 
-      var P = portListenChcek(p, function(err, res, port){
-        if(!err) {
-          debug("done Port: %d", port);
+      var P = portListenChcek(Host, p, function(err, status, Host, port){
+        if ( !err && status === 'open' ) {
+          debug("portListenChcek done. status=%s, Host: %s, Port: %d", status, Host, port);
           next();
         } else {
-          error("err Port: %d", port);
-          error(err);
+          error("portListenChcek Host: %s, Port: %d, err: %s", Host, port, err);
           var AlertObj = {
             DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
             CheckHost: os.hostname(),
@@ -207,10 +211,10 @@ function portCheck(List, callback){
             FunctionName: List.FunctionName,
             System: item.System + ' ' + item.Host,
             Target: item.Host + ':' + port,
-            Status: res
+            Status: status
           };
           var A = AlertSend(AlertObj, function(err, res){
-            if(err) error("webCheck AlertSend err: %s", err);
+            if(err) error("portCheck AlertSend err: %s", err);
             next();
           });
         }
@@ -307,9 +311,55 @@ function pingAliveChcek (target, callback){
 
 }
 
-function portListenChcek (port, cb) {
-  var res = 'Port Open';
-  cb(null, res, port);
+function portListenChcek (Host, port, cb) {
+  var status = null;
+
+  var target = dns.resolve4(Host, function(err, addr){
+    if (err) return cb(err, "portListenChcek dns.resolve4 error", Host, port);
+
+    var options = {
+      target  : addr.toString().trim(),
+      port    : port.toString(),
+      status  : 'TROU', // Timeout, Refused, Open, Unreachable
+      timeout : 5000,
+      banner  : false,
+      geo     : false
+    };
+
+    var Err, item;
+    var scanner = new evilscan(options);
+
+
+    scanner.on('result',function (data) {
+      item = data;
+    });
+
+    scanner.on('error',function (err) {
+      if(err) {
+        error("portListenChcek port scanner Err: %s", new Error(data.toString()) );
+        Err = err;
+      }
+    });
+
+    scanner.on('done',function () {
+      debug("port scanner finished");
+
+      if (Err) {
+        error("Err: %s", Err);
+      } else if ( typeof item !== "undefined" && typeof item.status !== "undefined" ) {
+        debug("item: %s", JsonString(item));
+        status = item.status;
+      } else {
+        status = "undefined";
+      }
+
+      cb(Err, status, Host, port);
+    });
+
+    scanner.run();
+
+  });
+
 }
 
 function httpAliveChcek (url, cb) {

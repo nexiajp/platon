@@ -47,7 +47,13 @@ if(opt[1].indexOf('module-doc.js') >= 0 && !isEmpty(opt[2]) ){
       name: 'table',
       short: 't',
       type : 'string',
-      description :'dynamoDB TableName. [ ServiceAlert | PingAlert(defualt) ]'
+      description :'dynamoDB TableName. -t [ ServiceAlert | PingAlert(defualt) ]'
+    },
+    {
+      name: 'verbose',
+      short: 'v',
+      type : 'boolean',
+      description :'query json view. -v'
     }
   ]);
 
@@ -102,7 +108,12 @@ function queryTable (hour, TableName) {
     var json  = JSON.stringify(res.Items);
     var Items = JSON.parse(json);
 
-    log(JsonString(Items));
+    if   ( opt["verbose"] ) log(JsonString(Items));
+    else if ( TableName === "ServiceAlert" ) {
+      SortView(Items, ["DateTime", "Profile", "System", "Status", "AlertCount"] );
+    } else {
+      SortView(Items, ["DateTime", "Profile", "PublicDnsName", "PublicIp", "AlertCount"] );
+    }
 
     // ObjectArraySort(Items, "DateTime", 'desc', function(err, data){
     //   if(err) return error(err);
@@ -127,6 +138,20 @@ function queryTable (hour, TableName) {
 
 }
 exports.QueryTable = queryTable;
+
+function SortView(arrData, map){
+  var output = "";
+  arrData.forEach( function( Item ){
+    map.forEach ( function(key) {
+      if ( typeof  Item[key] !== "undefined" ){
+        output += Item[key] + "\t";
+      }
+    });
+    output += "\n";
+  });
+  log(output);
+}
+
 
 function putItem(Doc, TableName, callback){
   debug("DynamoDB.Document Table: %s, putItem Doc: %s", TableName, JsonString(Doc));

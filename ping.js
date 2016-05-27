@@ -3,7 +3,7 @@
 var Conf  = require('./.Conf-Ping.json');
 var Gdns  = '8.8.8.8';
 
-var debug = require('debug')('PING');
+var debug = require('debug')('on');
 debug.log = console.log.bind(console);
 var error = console.error;
 var log   = console.log;
@@ -84,7 +84,8 @@ var Exclude  = {};
 var count    = 0;
 
 (function loop(){
-  debug("count: %d, LoopTime: %d", ++count, LoopTime);
+  count++;
+  // debug("count: %d, LoopTime: %d", count, LoopTime);
 
   var M = Main(function(err){
     if(err) error("Main err: %s", err);

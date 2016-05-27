@@ -2,7 +2,7 @@
 
 var Conf  = require('./.Conf-Srv.json');
 
-var debug = require('debug')('SRV');
+var debug = require('debug')('on');
 debug.log = console.log.bind(console);
 var error = console.error;
 var log   = console.log;
