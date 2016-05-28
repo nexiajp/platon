@@ -15,11 +15,6 @@ var DefUsername = "Platon-Check";
 var DefChannel  = "#alert";
 var DefMessage  = "this message is test POST to [#tmp] channel";
 
-// postSend( DefMessage, null, null, function(err, res) {
-//   if(err) error(err);
-//   log(res);
-// });
-
 function postSend ( message, channel, username, callback) {
   if( isEmpty(message) )  message  =  DefMessage;
   if( isEmpty(channel) )  channel  =  DefChannel;
