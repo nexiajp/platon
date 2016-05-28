@@ -1,5 +1,8 @@
 'use strict';
 
+// sudo setcap cap_net_raw+ep $(which node)
+// sudo getcap $(which node)
+
 var Conf  = require('./.Conf-Ping.json');
 var Gdns  = '8.8.8.8';
 
