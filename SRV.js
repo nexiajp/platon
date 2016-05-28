@@ -301,14 +301,17 @@ app.get('/', function (req, res) {
 });
 
 app.get('/IPsList', function (req, res) {
+  debug("IPsList request IP: %s", req.ip);
   res.send(JsonString(IPsList));
 });
 
 app.get('/ServiceList', function (req, res) {
+  debug("ServiceList request IP: %s", req.ip);
   res.send(JsonString(ServiceList));
 });
 
 app.get('/ProfileList', function (req, res) {
+  debug("ProfileList request IP: %s", req.ip);
   res.send(JsonString(ProfileList));
 });
 
