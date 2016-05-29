@@ -31,7 +31,7 @@ var cache      = require('memory-cache');
 var AlertTTL   = Conf.AlertTTL; // ms ; 1000*60*10 = 10min
 
 
-function getAWSProfiles(callback){
+var getAWSProfiles = function (callback){
 
   fs.readFile(CredentialsFile, 'utf8', function (err, data) {
 
@@ -68,9 +68,9 @@ function getAWSProfiles(callback){
 
   });
 
-}
+};
 
-function getEIPs(callback){
+var getEIPs = function (callback){
 
   var tmpEIPs = new Array();
 
@@ -146,56 +146,11 @@ function getEIPs(callback){
     callback(err);
   });
 
-}
+};
 
-(function loop(){
-  log('SRV Loop ( %d ).....', Conf.LoopTime);
-
-  async.series([
-    function(done){
-
-      var P = getPingList(function(err){
-        if(err) error("getPingList err: %s", err);
-        // debug("IPsList: %s", JsonString(IPsList));
-        done(null);
-      });
-
-    },
-    function(done){
-
-      var S = getServiceList(function(err){
-        if(err) error("getServiceList err: %s", err);
-        // debug("ServiceList: %s", JsonString(ServiceList));
-        done(null);
-      });
-
-    },
-    function(done){
-
-      var G = getAWSProfiles(function(err){
-        if(err) error("getAWSProfiles func err: %s", err);
-
-        // debug("ProfileList: %s", JsonString(ProfileList));
-
-        var GI = getEIPs(function(err){
-          if(err) error("getEIPs func err: %s", err);
-          done(null);
-        });
-
-      });
-
-    }
-    ], function(err, results) {
-
-      setTimeout(loop, Conf.LoopTime);
-
-    });
-
-})();
-
-function getPingList (callback) {
+var getPingList = function (callback) {
   debug("Conf.PingList: %s", Conf.PingList);
-  var JG = JsonGet(Conf.PingList, function(err, res, body){
+  JsonGet(Conf.PingList, function(err, res, body){
     if(err) callback(err);
     else if(isEmpty(body.PingList)) callback("PingList is Empty.");
     else {
@@ -203,7 +158,7 @@ function getPingList (callback) {
       async.each(body.PingList, function(List, next){
         if( typeof List.Disable !== 'undefined' && List.Disable === true ) return next();
         if( typeof List.JsonURL !== 'undefined' ) {
-          var J = JsonGet(List.JsonURL, function(err, res, body){
+          JsonGet(List.JsonURL, function(err, res, body){
             if(err) error("getPingList JsonGet url: %s err: %s", List.JsonURL, err);
             else if( body.IPs !== 'undefined' ){
               Array.prototype.push.apply(tmpList, body.IPs);
@@ -225,9 +180,9 @@ function getPingList (callback) {
       });
     }
   });
-}
+};
 
-function getServiceList (callback) {
+var getServiceList = function (callback) {
   debug("Conf.ServiceList: %s", Conf.ServiceList);
   JsonGet(Conf.ServiceList, function(err, res, body){
     if(err) callback(err);
@@ -275,7 +230,7 @@ function getServiceList (callback) {
 
     }
   });
-}
+};
 
 
 var app = express();
@@ -330,7 +285,7 @@ app.post('/IpCheckAlert', function(req, res) {
 
     cache.put(hashkey, doc.AlertCount, AlertTTL);
 
-    var M = modDoc.PutItem(doc, 'PingAlert', function(err){
+    modDoc.PutItem(doc, 'PingAlert', function(err){
       if(err) error("modDoc putItem func err: %s", err);
     });
 
@@ -358,7 +313,7 @@ app.post('/ServiceCheckAlert', function(req, res) {
 
     cache.put(hashkey, doc.AlertCount, AlertTTL);
 
-    var M = modDoc.PutItem(doc, 'ServiceAlert', function(err){
+    modDoc.PutItem(doc, 'ServiceAlert', function(err){
       if(err) error("modDoc putItem func err: %s", err);
     });
 
@@ -373,29 +328,29 @@ app.post('/ServiceCheckAlert', function(req, res) {
 
 app.listen(Conf.ListenPort);
 
-function JsonLog(obj){
+var JsonLog = function (obj){
   return log(JsonString(obj));
-}
+};
 
-function JsonString(obj) {
+var JsonString = function (obj) {
   return JSON.stringify(obj, null, "    ");
-}
+};
 
-function DataCheck (body) {
+var DataCheck = function (body) {
   try{
     if(isEmpty(extend({}, body))) return false;
     return true;
   } catch (e) {
     return false;
   }
-}
+};
 
-function JsonGet (url, cb) {
-  var headers, get;
+var JsonGet = function (url, cb) {
+  var headers;
   headers = {
     'User-Agent': 'curl'
   };
-  get = request.get({
+  request.get({
     url: url,
     headers: headers,
     json: true
@@ -404,4 +359,60 @@ function JsonGet (url, cb) {
     else if (res.statusCode !== 200) cb('Error Respons statusCode.', res, body);
     else cb(err, res, body);
   });
+};
+
+function Main (callback) {
+
+  async.series([
+    function(done){
+
+      getPingList(function(err){
+        if(err) error("getPingList err: %s", err);
+        // debug("IPsList: %s", JsonString(IPsList));
+        done(null);
+      });
+
+    },
+    function(done){
+
+      getServiceList(function(err){
+        if(err) error("getServiceList err: %s", err);
+        // debug("ServiceList: %s", JsonString(ServiceList));
+        done(null);
+      });
+
+    },
+    function(done){
+
+      getAWSProfiles(function(err){
+        if(err) error("getAWSProfiles func err: %s", err);
+
+        // debug("ProfileList: %s", JsonString(ProfileList));
+
+        getEIPs(function(err){
+          if(err) error("getEIPs func err: %s", err);
+          done(null);
+        });
+
+      });
+
+    }
+    ], function(err, results) {
+
+      callback(err, results);
+
+    });
+
 }
+
+(function loop(){
+  log('SRV Loop ( %d ).....', Conf.LoopTime);
+
+  var M = Main ( function (err, res) {
+    if(err) error("Main Func err: %s", err)
+    debug("Main res: %s", res);
+    if ( global.gc ) global.gc();
+  });
+  setTimeout(loop, Conf.LoopTime);
+
+})();

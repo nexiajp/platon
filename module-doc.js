@@ -67,9 +67,14 @@ if(opt[1].indexOf('module-doc.js') >= 0 && !isEmpty(opt[2]) ){
   }
 
   if ( typeof opt["query"] !== 'undefiend' ) {
-    if( typeof opt["table"] !== 'undefined' ) TableName = opt["table"];
     var hour = isNaN(opt["query"]) ? 1 : opt["query"];
-    queryTable (hour, TableName);
+    if( typeof opt["table"] === 'undefined' ) {
+      queryTable (hour, 'ServiceAlert');
+      queryTable (hour, 'PingAlert');
+    } else {
+      TableName = opt["table"];
+      queryTable (hour, TableName);
+    }
   }
 
   return;

@@ -95,6 +95,7 @@ var count    = 0;
     debug("Main Func end. count: %d", count);
     if( Loop > 0 && Loop <= count ) process.exit(0);
     if( count > 999) count = 1;
+    if ( global.gc ) global.gc();
   });
 
   setTimeout(loop, LoopTime);
@@ -102,8 +103,7 @@ var count    = 0;
 
 function Main(callback){
 
-
-  var P = pingAliveChcek(Gdns, function(err, msg){
+  pingAliveChcek(Gdns, function(err, msg){
     if (err) callback("Main func pingAliveChcek " + Gdns + ", err: " + err);
     else {
 

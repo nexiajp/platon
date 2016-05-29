@@ -92,6 +92,7 @@ var count    = 0;
     debug("Main Func end. count: %d", count);
     if( Loop > 0 && Loop <= count ) process.exit(0);
     if( count > 999) count = 1;
+    if ( global.gc ) global.gc();
   });
 
   setTimeout(loop, LoopTime);
@@ -103,7 +104,7 @@ function Main(callback){
     if (err) callback("Main func pingAliveChcek " + Gdns + ", err: " + err);
     else {
 
-      var J = JsonGet(Conf.ListURL, function(err, res, body){
+      JsonGet(Conf.ListURL, function(err, res, body){
 
         if(err) return callback(err);
 
@@ -114,11 +115,11 @@ function Main(callback){
         else Exclude = extend({}, body.Exclude);
 
         if ( typeof opt["json"] !== 'undefined' ) {
-          var V = viewCheckingJson(function(err){
+          viewCheckingJson(function(err){
             process.exit(0);
           });
         } else {
-          var S = ServiceListParse(function(err){
+          ServiceListParse(function(err){
             callback(err);
           });
         }
@@ -162,7 +163,7 @@ function ServiceListParse(callback) {
     async.series([
       function(done){
         if( typeof List.WEB !== 'undefined' ) {
-          var W = webCheck(List, function(err) {
+          webCheck(List, function(err) {
             done();
           });
         }
@@ -170,7 +171,7 @@ function ServiceListParse(callback) {
       },
       function(done){
         if( typeof List.Other !== 'undefined' ) {
-          var P = portCheck(List, function(err) {
+          portCheck(List, function(err) {
             done();
           });
         }
@@ -201,7 +202,7 @@ function portCheck(List, callback){
 
       debug("portListenChcek Profile: %s, Port: %d", List.Profile, p);
 
-      var P = portListenChcek(Host, p, function(err, status, Host, port){
+      portListenChcek(Host, p, function(err, status, Host, port){
         if ( !err && status === 'open' ) {
           debug("portListenChcek done. status=%s, Host: %s, Port: %d", status, Host, port);
           next();
@@ -216,7 +217,7 @@ function portCheck(List, callback){
             Target: item.Host + ':' + port,
             Status: status
           };
-          var A = AlertSend(AlertObj, function(err, res){
+          AlertSend(AlertObj, function(err, res){
             if(err) error("portCheck AlertSend err: %s", err);
             next();
           });
@@ -247,7 +248,7 @@ function webCheck(List, callback){
 
     debug("httpAliveChcek Profile: %s, URL: %s", List.Profile, item.URL);
 
-    var H = httpAliveChcek(item.URL, function(err, res, url){
+    httpAliveChcek(item.URL, function(err, res, url){
       if(!err) {
         debug("done URL: %s", url);
         done();
@@ -263,7 +264,7 @@ function webCheck(List, callback){
           Target: url,
           Status: "statusCode: " + res.statusCode
         };
-        var A = AlertSend(AlertObj, function(err, res){
+        AlertSend(AlertObj, function(err, res){
           if(err) error("webCheck AlertSend err: %s", err);
           done();
         });
@@ -294,7 +295,7 @@ function pingAliveChcek (target, callback){
 
   var session = ping.createSession (PingOptions);
 
-  var S = session.pingHost (target, function (err, target) {
+  session.pingHost (target, function (err, target) {
       if (err){
         if (err instanceof ping.RequestTimedOutError){
           msg = "Not alive. " + err.toString() + ", targert: " + target;
@@ -317,7 +318,7 @@ function pingAliveChcek (target, callback){
 function portListenChcek (Host, port, cb) {
   var status = null;
 
-  var target = dns.resolve4(Host, function(err, addr){
+  dns.resolve4(Host, function(err, addr){
     if (err) return cb(err, "portListenChcek dns.resolve4 error", Host, port);
 
     var options = {
@@ -366,11 +367,11 @@ function portListenChcek (Host, port, cb) {
 }
 
 function httpAliveChcek (url, cb) {
-  var headers, get;
+  var headers;
   headers = {
     'User-Agent': 'curl'
   };
-  get = request.get({
+  request.get({
     url: url,
     headers: headers
   }, function(err, res, body) {
@@ -385,11 +386,11 @@ function httpAliveChcek (url, cb) {
 }
 
 function JsonGet (url, cb) {
-  var headers, get;
+  var headers;
   headers = {
     'User-Agent': 'curl'
   };
-  get = request.get({
+  request.get({
     url: url,
     headers: headers,
     json: true
@@ -406,7 +407,7 @@ function AlertSend(AlertObj, cb){
     form: AlertObj,
     json: true
   };
-  var R = request.post(Params, function(err, res, body){
+  request.post(Params, function(err, res, body){
     if (!err && res.statusCode == 200) {
       cb(null, body);
     } else {
