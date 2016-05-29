@@ -399,7 +399,8 @@ function Main (callback) {
     }
     ], function(err, results) {
 
-      callback(err, results);
+      // debug("results: %s", JsonString(results));
+      callback(err, null);
 
     });
 
