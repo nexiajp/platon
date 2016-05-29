@@ -410,7 +410,7 @@ function Main (callback) {
 
   var M = Main ( function (err, res) {
     if(err) error("Main Func err: %s", err)
-    debug("Main res: %s", res);
+    if(res) debug("Main res: %s", res);
     if ( global.gc ) global.gc();
   });
   setTimeout(loop, Conf.LoopTime);
