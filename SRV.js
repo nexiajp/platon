@@ -409,7 +409,7 @@ function Main (callback) {
 (function loop(){
   log('SRV Loop ( %d ).....', Conf.LoopTime);
 
-  var M = Main ( function (err, res) {
+  Main ( function (err, res) {
     if(err) error("Main Func err: %s", err)
     if(res) debug("Main res: %s", res);
     if ( global.gc ) global.gc();

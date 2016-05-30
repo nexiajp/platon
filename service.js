@@ -87,7 +87,7 @@ var count    = 0;
   count++;
   // debug("count: %d, LoopTime: %d", count, LoopTime);
 
-  var M = Main(function(err){
+  Main(function(err){
     if(err) error("Main err: %s", err);
     debug("Main Func end. count: %d", count);
     if( Loop > 0 && Loop <= count ) process.exit(0);
@@ -357,6 +357,7 @@ function portListenChcek (Host, port, cb) {
         status = "undefined";
       }
 
+      scanner = null;
       cb(Err, status, Host, port);
     });
 

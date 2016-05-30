@@ -90,15 +90,16 @@ var count    = 0;
   count++;
   // debug("count: %d, LoopTime: %d", count, LoopTime);
 
-  var M = Main(function(err){
+  Main(function(err){
     if(err) error("Main err: %s", err);
     debug("Main Func end. count: %d", count);
     if( Loop > 0 && Loop <= count ) process.exit(0);
     if( count > 999) count = 1;
     if ( global.gc ) global.gc();
   });
-
+  
   setTimeout(loop, LoopTime);
+
 })();
 
 function Main(callback){
