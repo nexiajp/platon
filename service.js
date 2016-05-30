@@ -376,13 +376,16 @@ function httpAliveChcek (url, cb) {
     url: url,
     headers: headers
   }, function(err, res, body) {
+
     if ( typeof res === 'undefined' || typeof res.statusCode === 'undefined' ) {
       var res = {};
-      res.statusCode = 'Response nothing.';
+      res.statusCode = 'Response statusCode undefined.';
     }
+
     if (err) cb(err, res, url);
     else if (res.statusCode !== 200) cb('statusCode: ' + res.statusCode, res, url);
     else cb(err, res, url);
+
   });
 }
 
