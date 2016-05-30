@@ -46,7 +46,14 @@ var getAWSProfiles = function (callback){
         var line = l.trim();
 
         if( line.match( /^\[/ ) ){
-          if( ! line.match(/\[preview\]/) && ! line.match(/\[default\]/) && ! line.match(/\[stop/) ) {
+          if(
+            ! line.match(/\[preview\]/)
+            && ! line.match(/\[default\]/)
+            && ! line.match(/\[stop/)
+            && ! line.match(/-s3/)
+            && ! line.match(/-dynamodb/)
+            && ! line.match(/-sns/)
+          ) {
             tmpProfile = line.replace(/^\[/, '').replace(/\].*$/, '');
           }
         }
