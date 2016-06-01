@@ -115,9 +115,9 @@ function queryTable (hour, TableName) {
 
     if   ( opt["verbose"] ) log(JsonString(Items));
     else if ( TableName === "ServiceAlert" ) {
-      SortView(Items, ["DateTime", "Profile", "System", "Status", "AlertCount"] );
+      SortView(Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "System", "Status"] );
     } else {
-      SortView(Items, ["DateTime", "Profile", "PublicDnsName", "PublicIp", "AlertCount"] );
+      SortView(Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "PublicDnsName", "PublicIp"] );
     }
 
     // ObjectArraySort(Items, "DateTime", 'desc', function(err, data){
@@ -149,12 +149,22 @@ function SortView(arrData, map){
   arrData.forEach( function( Item ){
     map.forEach ( function(key) {
       if ( typeof  Item[key] !== "undefined" ){
-        output += Item[key] + "\t";
+        if(key === 'CheckHost') output += zeroPadding(Item[key], 16) + "  ";
+        else if (key === 'AlertCount') output += zeroPadding(Item[key], 3) + "  ";
+        else if (key === 'Profile') output += zeroPadding(Item[key], 8) + "  ";
+        else if (key === 'System') output += zeroPadding(Item[key], 30) + "\t";
+        else if (key === 'PublicDnsName') output += zeroPadding(Item[key], 30) + "\t";
+        else output += Item[key] + "\t";
       }
     });
     output += "\n";
   });
   log(output);
+
+  function zeroPadding (n, len) {
+    n = '' + n; //string cast
+    return len + 1 - n.length > 0 ? n + Array(len + 1 - n.length).join(' ') : n;
+  }
 }
 
 
