@@ -296,7 +296,11 @@ app.post('/IpCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    if ( doc.AlertCount % AlertCycle === 0 ) {
+    var alert_cycle = AlertCycle;
+    if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 10;
+    if ( doc.AlertCount > 30 ) alert_cycle = AlertCycle * 20;
+
+    if ( doc.AlertCount % alert_cycle === 0 ) {
       modSlack.PostSend( JsonString(doc), AlertChannel, 'PingAlert', function(err, res) {
         if(err) error("IpCheckAlert modSlack.PostSend err: %s", err);
       });
@@ -324,7 +328,11 @@ app.post('/ServiceCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    if ( doc.AlertCount % AlertCycle === 0 ) {
+    var alert_cycle = AlertCycle;
+    if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 10;
+    if ( doc.AlertCount > 30 ) alert_cycle = AlertCycle * 20;
+
+    if ( doc.AlertCount % alert_cycle === 0 ) {
       modSlack.PostSend( JsonString(doc), AlertChannel, 'ServiceAlert', function(err, res) {
         if(err) error("ServiceCheckAlert modSlack.PostSend err: %s", err);
       });
