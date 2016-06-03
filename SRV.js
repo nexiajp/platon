@@ -307,6 +307,7 @@ app.post('/IpCheckAlert', function(req, res) {
     var alert_cycle = AlertCycle;
     if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;
     if ( doc.AlertCount > 30 ) alert_cycle = AlertCycle * 6;
+    if ( doc.AlertCount > 50 ) alert_cycle = AlertCycle * 12;
 
     if ( doc.AlertCount % alert_cycle === 0 ) {
       modSlack.PostSend( JsonString(doc), AlertChannel, 'PingAlert', function(err, res) {
@@ -339,6 +340,7 @@ app.post('/ServiceCheckAlert', function(req, res) {
     var alert_cycle = AlertCycle;
     if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;
     if ( doc.AlertCount > 30 ) alert_cycle = AlertCycle * 6;
+    if ( doc.AlertCount > 50 ) alert_cycle = AlertCycle * 12;
 
     if ( doc.AlertCount % alert_cycle === 0 ) {
       modSlack.PostSend( JsonString(doc), AlertChannel, 'ServiceAlert', function(err, res) {
