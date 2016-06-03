@@ -262,6 +262,14 @@ app.get('/', function (req, res) {
   res.send('PLATON Server.\n');
 });
 
+app.get('/ENV', function (req, res) {
+  log('express: Url: %s, IP: %s', req.originalUrl, req.ip);
+  var EVN = {};
+  ENV.procenv = (extend({}, process.env));
+  if( typeof ENV.procenv.LS_COLORS !== 'undefined') delete ENV.procenv.LS_COLORS;
+  res.send(JsonString(ENV));
+});
+
 app.get('/IPsList', function (req, res) {
   debug("IPsList request IP: %s", req.ip);
   res.send(JsonString(IPsList));
