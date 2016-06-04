@@ -115,9 +115,9 @@ function queryTable (hour, TableName) {
 
     if   ( opt["verbose"] ) log(JsonString(Items));
     else if ( TableName === "ServiceAlert" ) {
-      SortView(Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "System", "Status"] );
+      SortView(TableName, Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "System", "Status"] );
     } else {
-      SortView(Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "PublicDnsName", "PublicIp"] );
+      SortView(TableName, Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "PublicDnsName", "PublicIp"] );
     }
 
     // ObjectArraySort(Items, "DateTime", 'desc', function(err, data){
@@ -144,8 +144,8 @@ function queryTable (hour, TableName) {
 }
 exports.QueryTable = queryTable;
 
-function SortView(arrData, map){
-  var output = "";
+function SortView(TableName, arrData, map){
+  var output = "Alert type : " + TableName + "\n";
   arrData.forEach( function( Item ){
     map.forEach ( function(key) {
       if ( typeof  Item[key] !== "undefined" ){
