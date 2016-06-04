@@ -262,6 +262,14 @@ app.get('/', function (req, res) {
   res.send('PLATON Server.\n');
 });
 
+app.get('/ENV', function (req, res) {
+  log('express: Url: %s, IP: %s', req.originalUrl, req.ip);
+  var EVN = {};
+  ENV.procenv = (extend({}, process.env));
+  if( typeof ENV.procenv.LS_COLORS !== 'undefined') delete ENV.procenv.LS_COLORS;
+  res.send(JsonString(ENV));
+});
+
 app.get('/IPsList', function (req, res) {
   debug("IPsList request IP: %s", req.ip);
   res.send(JsonString(IPsList));
@@ -296,7 +304,12 @@ app.post('/IpCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    if ( doc.AlertCount % AlertCycle === 0 ) {
+    var alert_cycle = AlertCycle;
+    if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;
+    if ( doc.AlertCount > 20 ) alert_cycle = AlertCycle * 6;
+    if ( doc.AlertCount > 50 ) alert_cycle = AlertCycle * 12;
+
+    if ( doc.AlertCount % alert_cycle === 0 ) {
       modSlack.PostSend( JsonString(doc), AlertChannel, 'PingAlert', function(err, res) {
         if(err) error("IpCheckAlert modSlack.PostSend err: %s", err);
       });
@@ -324,7 +337,12 @@ app.post('/ServiceCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    if ( doc.AlertCount % AlertCycle === 0 ) {
+    var alert_cycle = AlertCycle;
+    if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;
+    if ( doc.AlertCount > 20 ) alert_cycle = AlertCycle * 6;
+    if ( doc.AlertCount > 50 ) alert_cycle = AlertCycle * 12;
+
+    if ( doc.AlertCount % alert_cycle === 0 ) {
       modSlack.PostSend( JsonString(doc), AlertChannel, 'ServiceAlert', function(err, res) {
         if(err) error("ServiceCheckAlert modSlack.PostSend err: %s", err);
       });
