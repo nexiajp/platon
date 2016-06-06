@@ -154,7 +154,7 @@ function ServiceListParse(callback) {
   var Exclude_Profile  = null;
   if( typeof Exclude.Profile  !== 'undefined' ) Exclude_Profile = Exclude.Profile;
 
-  async.each(ServiceList, function(List, next) {
+  async.eachLimit(ServiceList, 1, function(List, next) {
     if( Exclude_Profile.indexOf(List.Profile) >= 0 ) return next();
 
     if (Profile) {
@@ -216,7 +216,7 @@ function portCheck(List, callback){
             Profile: List.Profile,
             FunctionName: List.FunctionName,
             System: item.System + ' ' + item.Host,
-            Target: item.Host + ':' + port,
+            Target: Host + ':' + port,
             Status: status
           };
           AlertSend(AlertObj, function(err, res){
