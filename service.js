@@ -21,7 +21,9 @@ var isObject = require('./isObject');
 var argv     = require('argv');
 var os       = require("os");
 var moment   = require('moment');
-var evilscan = require('evilscan');
+// var evilscan = require('evilscan');
+var portscanner = require('portscanner')
+
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
@@ -316,56 +318,69 @@ function pingAliveChcek (target, callback){
 }
 
 function portListenChcek (Host, port, cb) {
-  var status = null;
 
-  dns.resolve4(Host, function(err, addr){
-    if (err) return cb(err, "portListenChcek dns.resolve4 error", Host, port);
-
-    var options = {
-      target  : addr.toString().trim(),
-      port    : port.toString(),
-      status  : 'TROU', // Timeout, Refused, Open, Unreachable
-      timeout : 5000,
-      banner  : false,
-      geo     : false
-    };
-
-    var Err, item;
-    var scanner = new evilscan(options);
-
-
-    scanner.on('result',function (data) {
-      item = data;
-    });
-
-    scanner.on('error',function (err) {
-      if(err) {
-        error("portListenChcek port scanner Err: %s", new Error(data.toString()) );
-        Err = err;
-      }
-    });
-
-    scanner.on('done',function () {
-      debug("port scanner finished");
-
-      if (Err) {
-        error("Err: %s", Err);
-      } else if ( typeof item !== "undefined" && typeof item.status !== "undefined" ) {
-        debug("item: %s", JsonString(item));
-        status = item.status;
-      } else {
-        status = "undefined";
-      }
-
-      scanner = null;
-      cb(Err, status, Host, port);
-    });
-
-    scanner.run();
-
+  portscanner.checkPortStatus(port, Host, function(err, status) {
+    if(err) error("portListenChcek func checkPortStatus err: %s", err);
+    else if (status !== 'open') {
+      err = 'status: ' + status;
+    }
+    // debug("Host: %s, port: %d, status: %s", Host, port, status);
+    cb(err, status, Host, port);
   });
 
 }
+
+// function portListenChcek (Host, port, cb) {
+//   var status = null;
+//
+//   dns.resolve4(Host, function(err, addr){
+//     if (err) return cb(err, "portListenChcek dns.resolve4 error", Host, port);
+//
+//     var options = {
+//       target  : addr.toString().trim(),
+//       port    : port.toString(),
+//       status  : 'TROU', // Timeout, Refused, Open, Unreachable
+//       timeout : 5000,
+//       banner  : false,
+//       geo     : false
+//     };
+//
+//     var Err, item;
+//     var scanner = new evilscan(options);
+//
+//
+//     scanner.on('result',function (data) {
+//       item = data;
+//     });
+//
+//     scanner.on('error',function (err) {
+//       if(err) {
+//         error("portListenChcek port scanner Err: %s", new Error(data.toString()) );
+//         Err = err;
+//       }
+//     });
+//
+//     scanner.on('done',function () {
+//       debug("port scanner finished");
+//
+//       if (Err) {
+//         error("Err: %s", Err);
+//       } else if ( typeof item !== "undefined" && typeof item.status !== "undefined" ) {
+//         debug("item: %s", JsonString(item));
+//         status = item.status;
+//       } else {
+//         status = "undefined";
+//       }
+//
+//       scanner = null;
+//       cb(Err, status, Host, port);
+//     });
+//
+//     scanner.run();
+//
+//   });
+//
+// }
 
 function httpAliveChcek (url, cb) {
   var headers;
