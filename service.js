@@ -22,7 +22,9 @@ var argv     = require('argv');
 var os       = require("os");
 var moment   = require('moment');
 var evilscan = require('evilscan');
-// var portscanner = require('portscanner')
+// var portscanner = require('portscanner');
+
+process.setMaxListeners(30);
 
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
@@ -195,12 +197,12 @@ function portCheck(List, callback){
 
   var Other = List.Other;
 
-  async.eachLimit(Other, 2, function(item, done) {
+  async.eachLimit(Other, 1, function(item, done) {
     if( item.Disable === true ) return done();
 
     var Host = item.Host;
 
-    async.each(item.Port, function(p, next) {
+    async.eachLimit(item.Port, 1, function(p, next) {
 
       debug("portListenChcek Profile: %s, Port: %d", List.Profile, p);
 
