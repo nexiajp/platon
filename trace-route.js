@@ -1,16 +1,26 @@
+'use strict';
 
-var ping = require ("net-ping");
+// node trace-route.js 20 soy.nexia.jp
+
+var dns   = require('dns');
+var ping  = require ("net-ping");
+var async = require ("async");
+
+var log   = console.log;
+var error = console.error;
 
 if (process.argv.length < 4) {
-	console.log ("usage: node trace-route <ttl> <target> [<target> ...]");
+	log ("usage: node trace-route <ttl> <target> [<target> ...]");
 	process.exit (-1);
 }
 
 var ttl = parseInt (process.argv[2]);
 var targets = [];
+var Report  = {};
 
-for (var i = 3; i < process.argv.length; i++)
-	targets.push (process.argv[i]);
+for (var i = 3; i < process.argv.length; i++){
+	targets.push(process.argv[i]);
+}
 
 var options = {
 	retries: 1,
@@ -19,33 +29,81 @@ var options = {
 
 var session = ping.createSession (options);
 
-session.on ("error", function (error) {
-	console.trace (error.toString ());
+session.on ("error", function (err) {
+	console.trace (err.toString ());
 });
 
-function doneCb (error, target) {
-	if (error)
-		console.log (target + ": " + error.toString ());
-	else
-		console.log (target + ": Done");
-}
 
-function feedCb (error, target, ttl, sent, rcvd) {
+function feedCb (err, target, ttl, sent, rcvd) {
 	var ms = rcvd - sent;
-	if (error) {
-		if (error instanceof ping.TimeExceededError) {
-			console.log (target + ": " + error.source + " (ttl=" + ttl
-					+ " ms=" + ms +")");
+	if (err) {
+		if (err instanceof ping.TimeExceededError) {
+			log(target + ": " + err.source + " (ttl=" + ttl + " ms=" + ms +")");
 		} else {
-			console.log (target + ": " + error.toString () + " (ttl=" + ttl
-					+ " ms=" + ms +")");
+			log(target + ": " + err.toString () + " (ttl=" + ttl + " ms=" + ms +")");
 		}
 	} else {
-		console.log (target + ": " + target + " (ttl=" + ttl + " ms="
-				+ ms +")");
+		log(target + ": " + target + " (ttl=" + ttl + " ms=" + ms +")");
 	}
 }
 
-for (var i = 0; i < targets.length; i++) {
-	session.traceRoute (targets[i], ttl, feedCb, doneCb);
+function traceRoute (addr, callback) {
+	session.traceRoute (addr, ttl, feedCb, function (err, target) {
+		if (err) log("target: " + target + ", err: " + err);
+		else log("target: " + target + " Done.");
+		callback(err, target);
+	});
+}
+
+async.each(targets, function(host, done){
+
+	Report[host] = new Array();
+
+	if( host.match( /^\d+\.\d+\.\d+\.\d+$/ ) ) { // if ip addr ?
+
+		traceRoute(host, function(err, target){
+			done();
+		});
+
+	} else { // hostname
+
+
+		dns.resolve4(host, function(err, addr){
+			if (err) {
+
+				Report[host].push("dns.resolve4 host: " + host + " err: " + JSON.stringify(err));
+				done();
+
+			} else {
+
+				delete Report[host];
+				var ip_addr = addr.toString().trim();
+				Report[ip_addr] = new Array();
+
+				traceRoute(ip_addr, function(err, target){
+					done();
+				});
+
+			}
+		});
+
+	}
+
+}, function(err){
+	log("trace-route exit.")
+	session.close();
+	JSON.stringify(Report, null, "    ");
+	ReportView();
+});
+
+function ReportView () {
+	async.map(Report, function(item, done){
+		async.forEach(item, function(line, next){
+			log(line);
+			next;
+		}, function(err){
+			log("\n");
+			done();
+		});
+	});
 }
