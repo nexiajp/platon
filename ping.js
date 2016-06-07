@@ -61,6 +61,13 @@ argv.option([
     type : 'int',
     description :'check Loop Time Waite second. ( 120 = 2min )',
     example: "'"+scriptname+" --time=60' or '"+scriptname+" -t 60'"
+  },
+  {
+    name: 'test',
+    short: '',
+    type : 'int',
+    description :'test mode. Slack Post is not.',
+    example: "'"+scriptname+" --test'"
   }
 ]);
 
@@ -97,7 +104,7 @@ var count    = 0;
     if( count > 999) count = 1;
     if ( global.gc ) global.gc();
   });
-  
+
   setTimeout(loop, LoopTime);
 
 })();
@@ -176,6 +183,9 @@ function PingListParse(callback) {
         } else {
           error(msg);
           // error("PingListParse pingAliveChcek err: %s", err);
+
+          if( typeof opt["test"] !== 'undefined' ) return done();
+
           var AlertObj = {
             DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
             CheckHost: os.hostname(),
@@ -188,6 +198,8 @@ function PingListParse(callback) {
             if(err) error("PingListParse AlertSend err: %s", err);
             done();
           });
+
+
         }
       });
 

@@ -67,6 +67,13 @@ argv.option([
     type : 'int',
     description :'check Loop Time Waite second. ( 120 = 2min )',
     example: "'"+scriptname+" --time=60' or '"+scriptname+" -t 60'"
+  },
+  {
+    name: 'test',
+    short: '',
+    type : 'int',
+    description :'test mode. Slack Post is not.',
+    example: "'"+scriptname+" --test'"
   }
 ]);
 
@@ -212,6 +219,9 @@ function portCheck(List, callback){
           next();
         } else {
           error("portListenChcek Host: %s, Port: %d, err: %s", Host, port, err);
+
+          if( typeof opt["test"] !== 'undefined' ) return next();
+
           var AlertObj = {
             DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
             CheckHost: os.hostname(),
@@ -225,6 +235,7 @@ function portCheck(List, callback){
             if(err) error("portCheck AlertSend err: %s", err);
             next();
           });
+
         }
       });
 
@@ -259,6 +270,9 @@ function webCheck(List, callback){
       } else {
         error("err: %s", url);
         error(err);
+
+        if( typeof opt["test"] !== 'undefined' ) return done();
+
         var AlertObj = {
           DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
           CheckHost: os.hostname(),
@@ -272,6 +286,7 @@ function webCheck(List, callback){
           if(err) error("webCheck AlertSend err: %s", err);
           done();
         });
+
       }
     });
 
