@@ -8,7 +8,9 @@ var Gdns  = '8.8.8.8';
 
 var debug = require('debug')('on');
 debug.log = console.log.bind(console);
-var error = console.error;
+var DEBUG = require('debug'); DEBUG.enable('ping:*');
+var error = DEBUG('ping:error');
+// var error = console.error;
 var log   = console.log;
 
 var extend   = require('util')._extend;
@@ -176,9 +178,10 @@ function PingListParse(callback) {
     async.eachLimit(List.EIPs, 5, function(eip, done) {
       // debug("%s: %s", List.Profile, eip.PublicIp);
       if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
-      debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
+      // debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
       pingAliveChcek(eip.PublicIp, function(err, msg){
         if(!err) {
+          debug("pingAliveChcek done. Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
           // debug("done PublicIp: %s", eip.PublicIp);
           done();
         } else {
@@ -244,7 +247,7 @@ function pingAliveChcek (target, callback){
         }
         // error(msg);
       }
-      debug("pingAliveChcek exit target: %s", target);
+      // debug("pingAliveChcek exit target: %s", target);
       // session.close();
       // session = null;
       callback(err, msg)

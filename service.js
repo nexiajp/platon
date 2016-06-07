@@ -8,7 +8,9 @@ var Gdns  = '8.8.8.8';
 
 var debug = require('debug')('on');
 debug.log = console.log.bind(console);
-var error = console.error;
+var DEBUG = require('debug'); DEBUG.enable('service:*');
+var error = DEBUG('service:error');
+// var error = console.error;
 var log   = console.log;
 
 var extend   = require('util')._extend;
