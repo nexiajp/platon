@@ -175,7 +175,7 @@ function PingListParse(callback) {
       if( Profile !== List.Profile) return next();
     }
 
-    async.eachLimit(List.EIPs, 5, function(eip, done) {
+    async.eachLimit(List.EIPs, 1, function(eip, done) {
       // debug("%s: %s", List.Profile, eip.PublicIp);
       if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
       // debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
@@ -231,8 +231,8 @@ function pingAliveChcek (target, callback){
       networkProtocol: ping.NetworkProtocol.IPv4,
       packetSize: ( 64 + 12 ),
       retries: 2,
-      // sessionId: ( randomIntInc(2049, 6553) ),
-      timeout: 5000,
+      sessionId: ( randomIntInc(2049, 6553) ),
+      timeout: 3000,
       ttl: 128
   };
 
@@ -248,8 +248,8 @@ function pingAliveChcek (target, callback){
         // error(msg);
       }
       // debug("pingAliveChcek exit target: %s", target);
-      // session.close();
-      // session = null;
+      session.close();
+      session = null;
       callback(err, msg)
   });
 
