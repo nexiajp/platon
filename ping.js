@@ -179,9 +179,9 @@ function PingListParse(callback) {
       // debug("%s: %s", List.Profile, eip.PublicIp);
       if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
       // debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
-      pingAliveChcek(eip.PublicIp, function(err, msg){
+      pingAliveChcek(eip.PublicIp, function(err, msg, ms){
         if(!err) {
-          debug("pingAliveChcek done. Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
+          debug("pingAliveChcek done ( ms = %d ). Profile: %s, PublicIp: %s", ms, List.Profile, eip.PublicIp)
           // debug("done PublicIp: %s", eip.PublicIp);
           done();
         } else {
@@ -233,24 +233,24 @@ function pingAliveChcek (target, callback){
       retries: 2,
       sessionId: ( randomIntInc(2049, 6553) ),
       timeout: 3000,
-      ttl: 128
+      ttl: 64
   };
 
   var session = ping.createSession (PingOptions);
 
-  session.pingHost (target, function (err, target) {
-      if (err){
-        if (err instanceof ping.RequestTimedOutError){
-          msg = "Not alive. " + err.toString() + ", targert: " + target;
-        }else{
-          msg = err.toString() + ", target: " + target;
-        }
-        // error(msg);
+  session.pingHost (target, function (err, target, sent, rcvd) {
+    var ms = rcvd - sent;
+    if (err){
+      if (err instanceof ping.RequestTimedOutError){
+        msg = "Not alive. ( ms=" + ms + " ) " + err.toString() + ", targert: " + target;
+      }else{
+        msg = err.toString() + ", target: " + target;
       }
-      // debug("pingAliveChcek exit target: %s", target);
-      session.close();
-      session = null;
-      callback(err, msg)
+    }
+    // debug("pingAliveChcek exit target: %s", target);
+    session.close();
+    session = null;
+    callback(err, msg, ms)
   });
 
 
