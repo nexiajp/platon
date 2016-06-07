@@ -20,6 +20,7 @@ var isObject = require('./isObject');
 var argv     = require('argv');
 var os       = require("os");
 var moment   = require('moment');
+var ping     = require("net-ping");
 
 var scriptname = ( process.argv[ 1 ] || '' ).split( '/' ).pop();
 
@@ -106,7 +107,6 @@ var count    = 0;
   });
 
   setTimeout(loop, LoopTime);
-
 })();
 
 function Main(callback){
@@ -131,6 +131,7 @@ function Main(callback){
           });
         } else {
           PingListParse(function(err){
+            // debug("PingListParse func done.");
             callback(err);
           });
         }
@@ -165,24 +166,23 @@ function PingListParse(callback) {
   if( typeof Exclude.Profile  !== 'undefined' ) Exclude_Profile  = Exclude.Profile;
   if( typeof Exclude.PublicIp !== 'undefined' ) Exclude_PublicIp = Exclude.PublicIp;
 
-  async.each(PingList, function(List, next) {
+  async.eachLimit(PingList, 3, function(List, next) {
     if( Exclude_Profile.indexOf(List.Profile) >= 0 ) return next();
 
     if (Profile) {
       if( Profile !== List.Profile) return next();
     }
 
-    async.each(List.EIPs, function(eip, done) {
+    async.eachLimit(List.EIPs, 5, function(eip, done) {
       // debug("%s: %s", List.Profile, eip.PublicIp);
       if( Exclude_PublicIp.indexOf(eip.PublicIp) >= 0 ) return done();
       debug("pingAliveChcek Profile: %s, PublicIp: %s", List.Profile, eip.PublicIp)
-      var P = pingAliveChcek(eip.PublicIp, function(err, msg){
+      pingAliveChcek(eip.PublicIp, function(err, msg){
         if(!err) {
-          debug("done PublicIp: %s", eip.PublicIp);
+          // debug("done PublicIp: %s", eip.PublicIp);
           done();
         } else {
           error(msg);
-          // error("PingListParse pingAliveChcek err: %s", err);
 
           if( typeof opt["test"] !== 'undefined' ) return done();
 
@@ -194,7 +194,7 @@ function PingListParse(callback) {
             PublicIp: eip.PublicIp,
             PublicDnsName: eip.PublicDnsName
           };
-          var A = AlertSend(AlertObj, function(err, res){
+          AlertSend(AlertObj, function(err, res){
             if(err) error("PingListParse AlertSend err: %s", err);
             done();
           });
@@ -205,35 +205,37 @@ function PingListParse(callback) {
 
     },
     function(err){
+      if(err) error("PingListParse async.each loop2 err: %s", err);
+      // debug("PingListParse async.each loop2 done.");
       next();
     });
 
   },
   function(err){
+    if(err) error("PingListParse async.each loop1 err: %s", err);
+    // debug("PingListParse async.each loop1 done.");
     callback();
   });
-
 
 }
 
 function pingAliveChcek (target, callback){
 
-  var ping = require("net-ping");
   var msg  = "Alive";
 
   // ping Default options
   var PingOptions = {
       networkProtocol: ping.NetworkProtocol.IPv4,
       packetSize: ( 64 + 12 ),
-      retries: 3,
-      sessionId: ( randomIntInc(2049, 6553) ),
-      timeout: 2000,
+      retries: 2,
+      // sessionId: ( randomIntInc(2049, 6553) ),
+      timeout: 3000,
       ttl: 128
   };
 
   var session = ping.createSession (PingOptions);
 
-  var SP = session.pingHost (target, function (err, target) {
+  session.pingHost (target, function (err, target) {
       if (err){
         if (err instanceof ping.RequestTimedOutError){
           msg = "Not alive. " + err.toString() + ", targert: " + target;
@@ -242,7 +244,9 @@ function pingAliveChcek (target, callback){
         }
         // error(msg);
       }
-      session.close();
+      debug("pingAliveChcek exit target: %s", target);
+      // session.close();
+      // session = null;
       callback(err, msg)
   });
 
@@ -254,11 +258,11 @@ function pingAliveChcek (target, callback){
 }
 
 function JsonGet (url, cb) {
-  var headers, get;
+  var headers;
   headers = {
     'User-Agent': 'curl'
   };
-  get = request.get({
+  request.get({
     url: url,
     headers: headers,
     json: true
@@ -275,7 +279,7 @@ function AlertSend(AlertObj, cb){
     form: AlertObj,
     json: true
   };
-  var R = request.post(Params, function(err, res, body){
+  request.post(Params, function(err, res, body){
     if (!err && res.statusCode == 200) {
       cb(null, body);
     } else {
