@@ -232,7 +232,7 @@ function pingAliveChcek (target, callback){
       packetSize: ( 64 + 12 ),
       retries: 2,
       // sessionId: ( randomIntInc(2049, 6553) ),
-      timeout: 3000,
+      timeout: 5000,
       ttl: 128
   };
 
