@@ -24,7 +24,7 @@ for (var i = 3; i < process.argv.length; i++){
 
 var options = {
 	retries: 1,
-	timeout: 2000
+	timeout: 1000
 };
 
 var session = ping.createSession (options);
