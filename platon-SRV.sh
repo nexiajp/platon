@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export HOME=/home/okabe
+export HOME=/home/ec2-user
 export DEBUG=on
 
 . ${HOME}/.bash_profile
