@@ -264,7 +264,7 @@ app.get('/', function (req, res) {
 
 app.get('/ENV', function (req, res) {
   log('express: Url: %s, IP: %s', req.originalUrl, req.ip);
-  var EVN = {};
+  var ENV = {};
   ENV.procenv = (extend({}, process.env));
   if( typeof ENV.procenv.LS_COLORS !== 'undefined') delete ENV.procenv.LS_COLORS;
   res.send(JsonString(ENV));
