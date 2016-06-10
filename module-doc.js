@@ -93,7 +93,7 @@ function queryTable (hour, TableName) {
       .where('Time').gte(serialTime)
       .descending('Time')
       .limit(100)
-      .exec(responseView);
+      .exec( responseView );
 
   } else {
 
@@ -102,7 +102,7 @@ function queryTable (hour, TableName) {
       .where('Time').gte(serialTime)
       .descending('Time')
       .limit(100)
-      .exec(responseView);
+      .exec( responseView );
   }
 
 
@@ -113,7 +113,7 @@ function queryTable (hour, TableName) {
     var json  = JSON.stringify(res.Items);
     var Items = JSON.parse(json);
 
-    if   ( opt["verbose"] ) log(JsonString(Items));
+    if   ( opt["verbose"] ) log("%s: %s", TableName, JsonString(Items));
     else if ( TableName === "ServiceAlert" ) {
       SortView(TableName, Items, ["DateTime", "CheckHost", "Profile", "AlertCount", "System", "Status"] );
     } else {
