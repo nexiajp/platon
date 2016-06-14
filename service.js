@@ -15,7 +15,7 @@ var log   = console.log;
 
 var extend   = require('util')._extend;
 var fs       = require('fs');
-var dns      = require('dns');
+// var dns      = require('dns');
 var request  = require('request');
 var async    = require('async');
 var isEmpty  = require('./isEmpty');
