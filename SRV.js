@@ -306,7 +306,7 @@ app.post('/IpCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    EmitFluent('PingAlert', doc);
+    EmitFluent('ping', doc);
 
     var alert_cycle = AlertCycle;
     if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;
@@ -341,7 +341,7 @@ app.post('/ServiceCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    EmitFluent('ServiceAlert', doc);
+    EmitFluent('service', doc);
 
     var alert_cycle = AlertCycle;
     if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;

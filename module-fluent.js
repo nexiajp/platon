@@ -8,7 +8,7 @@ var error   = console.error;
 var log     = console.log;
 
 var fluent  = require('fluent-logger');
-var TopTag  = 'Platon';
+var TopTag  = 'platon';
 
 var logger  = fluent.createFluentSender( TopTag, {
    host: 'localhost',
