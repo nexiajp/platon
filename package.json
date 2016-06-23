@@ -16,6 +16,7 @@
     "dynamodb-doc": "^1.0.0",
     "evilscan": "^1.0.2",
     "express": "^4.13.4",
+    "fluent-logger": "^1.1.1",
     "memory-cache": "^0.1.5",
     "moment": "^2.13.0",
     "net-ping": "^1.2.0",

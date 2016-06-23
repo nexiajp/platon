@@ -7,10 +7,10 @@ debug.log   = console.log.bind(console);
 var error   = console.error;
 var log     = console.log;
 
-var fluent = require('fluent-logger');
-var TopTag = 'Platon';
+var fluent  = require('fluent-logger');
+var TopTag  = 'Platon';
 
-var logger = fluent.createFluentSender( TopTag, {
+var logger  = fluent.createFluentSender( TopTag, {
    host: 'localhost',
    port: 24224,
    timeout: 3.0,
