@@ -121,11 +121,13 @@ function Main(callback){
 
         if(err) return callback(err);
 
-        if(isEmpty(body.PingList)) PingList = [];
-        else PingList = extend([], body.PingList);
+        if( ! isEmpty(body.PingList) ) {
+          PingList = extend([], body.PingList);
+        }
 
-        if(isEmpty(body.Exclude)) Exclude = {};
-        else Exclude = extend({}, body.Exclude);
+        if( ! isEmpty(body.Exclude) ) {
+          Exclude = extend({}, body.Exclude);
+        }
 
         if ( typeof opt["json"] !== 'undefined' ) {
           viewCheckingIPsJson(function(err){

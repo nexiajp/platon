@@ -121,11 +121,13 @@ function Main(callback){
 
         if(err) return callback(err);
 
-        if(isEmpty(body.ServiceList)) ServiceList = [];
-        else ServiceList = extend([], body.ServiceList);
+        if( ! isEmpty(body.ServiceList) ){
+          ServiceList = extend([], body.ServiceList);
+        }
 
-        if(isEmpty(body.Exclude)) Exclude = {};
-        else Exclude = extend({}, body.Exclude);
+        if( ! isEmpty(body.Exclude) ) {
+          Exclude = extend({}, body.Exclude);
+        }
 
         if ( typeof opt["json"] !== 'undefined' ) {
           viewCheckingJson(function(err){
