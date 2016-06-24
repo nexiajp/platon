@@ -20,6 +20,7 @@ var modDoc   = require("./module-doc");
 var modSlack = require("./module-slack");
 var modFluent    = require("./module-fluent");
 var EmitFluent   = modFluent.EmitFluent;
+var FluentEmitMode = false;
 var AlertChannel = Conf.AlertChannel;
 var AlertCycle   = Conf.AlertCycle;
 
@@ -306,7 +307,7 @@ app.post('/IpCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    EmitFluent('ping', doc);
+    if ( FluentEmitMode ) EmitFluent('ping', doc);
 
     var alert_cycle = AlertCycle;
     if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;
@@ -341,7 +342,7 @@ app.post('/ServiceCheckAlert', function(req, res) {
       if(err) error("modDoc putItem func err: %s", err);
     });
 
-    EmitFluent('service', doc);
+    if( FluentEmitMode ) EmitFluent('service', doc);
 
     var alert_cycle = AlertCycle;
     if ( doc.AlertCount > 10 ) alert_cycle = AlertCycle * 3;

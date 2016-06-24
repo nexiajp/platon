@@ -1,7 +1,5 @@
 'use strict';
 
-var Fluent_Emit_Mode = false;
-
 var debug   = require('debug')('modFluent');
 debug.log   = console.log.bind(console);
 var error   = console.error;
@@ -19,7 +17,6 @@ var logger  = fluent.createFluentSender( TopTag, {
 
 function emitFluent (label, item) {
   debug("Fluent logger emit label: %s, item: %s", label, JsonString(item));
-  if( process.env['DEBUG'] || !Fluent_Emit_Mode ) return;
   logger.emit(label, item);
 }
 exports.EmitFluent = emitFluent;
