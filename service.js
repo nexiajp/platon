@@ -71,6 +71,13 @@ argv.option([
     example: "'"+scriptname+" --time=60' or '"+scriptname+" -t 60'"
   },
   {
+    name: 'gce',
+    short: '',
+    type : 'boolean',
+    description :'Google Compute Engine(GCE) mode',
+    example: "'"+scriptname+" --gce'"
+  },
+  {
     name: 'test',
     short: '',
     type : 'int',
@@ -81,6 +88,8 @@ argv.option([
 
 var args = argv.run();
 var opt  = args.options;
+
+var GCE_MODE = opt['gce'] ? true : false;
 
 if (Object.keys(opt).length < 1 || opt["help"] ){
   argv.help();
@@ -215,33 +224,45 @@ function portCheck(List, callback){
 
     async.eachLimit(item.Port, 1, function(p, next) {
 
-      debug("portListenChcek Profile: %s, Port: %d", List.Profile, p);
+      // if ( GCE_MODE ) {
+      if( GCE_MODE && ( p == 25 || p == 587 || p == 465 ) ) {
 
-      portListenChcek(Host, p, function(err, status, Host, port){
-        if ( !err && status === 'open' ) {
-          debug("portListenChcek done. status=%s, Host: %s, Port: %d", status, Host, port);
-          next();
-        } else {
-          error("portListenChcek Host: %s, Port: %d, err: %s", Host, port, err);
+        debug("###### Google Compute Engine(GCE) mode, SMTP scan will through.");
+        debug("######   Profile: %s, Host: %s, Port: %d", List.Profile, Host, p);
+        next();
 
-          if( typeof opt["test"] !== 'undefined' ) return next();
+      } else {
 
-          var AlertObj = {
-            DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
-            CheckHost: os.hostname(),
-            Profile: List.Profile,
-            FunctionName: List.FunctionName,
-            System: item.System + ' ' + item.Host,
-            Target: Host + ':' + port,
-            Status: status
-          };
-          AlertSend(AlertObj, function(err, res){
-            if(err) error("portCheck AlertSend err: %s", err);
+        debug("portListenChcek Profile: %s, Host: %s, Port: %d", List.Profile, Host, p);
+
+        portListenChcek(Host, p, function(err, status, Host, port){
+          if ( !err && status === 'open' ) {
+            debug("portListenChcek done. status=%s, Host: %s, Port: %d", status, Host, port);
             next();
-          });
+          } else {
+            error("portListenChcek Host: %s, Port: %d, err: %s", Host, port, err);
 
-        }
-      });
+            if( typeof opt["test"] !== 'undefined' ) return next();
+
+            var AlertObj = {
+              DateTime: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
+              CheckHost: os.hostname(),
+              Profile: List.Profile,
+              FunctionName: List.FunctionName,
+              System: item.System + ' ' + item.Host,
+              Target: Host + ':' + port,
+              Status: status
+            };
+            AlertSend(AlertObj, function(err, res){
+              if(err) error("portCheck AlertSend err: %s", err);
+              next();
+            });
+
+          }
+        });
+
+      }
+
 
     },
     function(err) {
